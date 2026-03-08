@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -70,7 +69,6 @@ fun MainNavGraph(
         ) {
             composable(BottomNavItem.Dashboard.route) {
                 DashboardScreen(
-                    navController = navController,
                     isDarkMode = isDarkMode,
                     onToggleDarkMode = onToggleDarkMode
                 )
