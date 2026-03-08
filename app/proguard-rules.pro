@@ -19,3 +19,33 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# Hilt
+-keepclasseswithmembers class * {
+    @dagger.hilt.* <methods>;
+}
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+
+# Kotlin Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+
+# Keep data classes for Room entities
+-keep class com.ae.emailrotator.data.local.entity.** { *; }
+-keep class com.ae.emailrotator.data.local.dao.** { *; }
+-keep class com.ae.emailrotator.domain.model.** { *; }
+
+# WorkManager
+-keep class * extends androidx.work.Worker
+-keep class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
