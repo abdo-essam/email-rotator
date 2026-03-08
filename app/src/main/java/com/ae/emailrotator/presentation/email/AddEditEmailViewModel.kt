@@ -7,7 +7,7 @@ import com.ae.emailrotator.domain.model.Tool
 import com.ae.emailrotator.domain.usecase.email.AddEmailUseCase
 import com.ae.emailrotator.domain.usecase.email.GetEmailsUseCase
 import com.ae.emailrotator.domain.usecase.email.UpdateEmailUseCase
-import com.ae.emailrotator.domain.usecase.tool.GetToolsWithEmailsUseCase
+import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -29,7 +29,7 @@ class AddEditEmailViewModel @Inject constructor(
     private val getEmailsUseCase: GetEmailsUseCase,
     private val addEmailUseCase: AddEmailUseCase,
     private val updateEmailUseCase: UpdateEmailUseCase,
-    private val getToolsWithEmailsUseCase: GetToolsWithEmailsUseCase
+    private val getToolsUseCase: GetToolsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddEditEmailUiState())
@@ -37,12 +37,11 @@ class AddEditEmailViewModel @Inject constructor(
 
     private var editingEmail: Email? = null
 
-    fun initialize(emailId: Long?) {
+    fun initialize(emailId: Long?, preselectedToolId: Long?) {
         viewModelScope.launch {
-            getToolsWithEmailsUseCase().first().let { toolsWithEmails ->
-                val tools = toolsWithEmails.map { it.tool }
-                _uiState.update { it.copy(allTools = tools) }
-            }
+            val allToolsWithEmails = getToolsUseCase().first()
+            val tools = allToolsWithEmails.map { it.tool }
+            _uiState.update { it.copy(allTools = tools) }
 
             if (emailId != null) {
                 getEmailsUseCase.byId(emailId).first()?.let { email ->
@@ -59,18 +58,14 @@ class AddEditEmailViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false) }
                 }
             } else {
-                _uiState.update { it.copy(isLoading = false) }
+                val preselected = if (preselectedToolId != null) setOf(preselectedToolId) else emptySet()
+                _uiState.update { it.copy(selectedToolIds = preselected, isLoading = false) }
             }
         }
     }
 
     fun updateEmailAddress(address: String) {
-        _uiState.update {
-            it.copy(
-                emailAddress = address,
-                emailError = null
-            )
-        }
+        _uiState.update { it.copy(emailAddress = address, emailError = null) }
     }
 
     fun toggleTool(toolId: Long) {
@@ -89,7 +84,6 @@ class AddEditEmailViewModel @Inject constructor(
             _uiState.update { it.copy(emailError = "Email address is required") }
             return
         }
-
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) {
             _uiState.update { it.copy(emailError = "Invalid email format") }
             return
@@ -97,24 +91,15 @@ class AddEditEmailViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-
             try {
-                if (_uiState.value.isEditing && editingEmail != null) {
-                    val updated = editingEmail!!.copy(address = address)
-                    updateEmailUseCase(updated, state.selectedToolIds.toList())
+                if (state.isEditing && editingEmail != null) {
+                    updateEmailUseCase(editingEmail!!.copy(address = address), state.selectedToolIds.toList())
                 } else {
-                    val email = Email(address = address)
-                    addEmailUseCase(email, state.selectedToolIds.toList())
+                    addEmailUseCase(Email(address = address), state.selectedToolIds.toList())
                 }
-
                 _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSaving = false,
-                        emailError = "Failed to save: ${e.message}"
-                    )
-                }
+                _uiState.update { it.copy(isSaving = false, emailError = "Failed: ${e.message}") }
             }
         }
     }

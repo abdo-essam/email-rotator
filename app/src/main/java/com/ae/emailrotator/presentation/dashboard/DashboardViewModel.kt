@@ -4,24 +4,30 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ae.emailrotator.domain.model.*
 import com.ae.emailrotator.domain.repository.EmailRepository
+import com.ae.emailrotator.domain.usecase.device.GetDevicesUseCase
 import com.ae.emailrotator.domain.usecase.email.LimitEmailUseCase
-import com.ae.emailrotator.domain.usecase.tool.GetToolsWithEmailsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class DashboardUiState(
-    val toolSummaries: List<ToolSummary> = emptyList(),
-    val emailStatusRows: List<EmailStatusRow> = emptyList(),
+    val devicesWithTools: List<DeviceWithTools> = emptyList(),
+    val allEmails: List<Email> = emptyList(),
     val isLoading: Boolean = true,
-    val limitDialogEmail: EmailStatusRow? = null,
-    val snackbarMessage: String? = null
+    val limitDialogEmailId: Long? = null,
+    val limitDialogEmailAddress: String? = null,
+    val snackbarMessage: String? = null,
+    val totalDevices: Int = 0,
+    val totalTools: Int = 0,
+    val totalEmails: Int = 0,
+    val totalAvailable: Int = 0,
+    val totalLimited: Int = 0
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val getToolsWithEmailsUseCase: GetToolsWithEmailsUseCase,
+    private val getDevicesUseCase: GetDevicesUseCase,
     private val emailRepository: EmailRepository,
     private val limitEmailUseCase: LimitEmailUseCase
 ) : ViewModel() {
@@ -30,68 +36,53 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        loadDashboard()
-    }
-
-    private fun loadDashboard() {
         viewModelScope.launch {
             combine(
-                getToolsWithEmailsUseCase(),
+                getDevicesUseCase.withTools(),
                 emailRepository.getAllEmails()
-            ) { toolsWithEmails, allEmails ->
-                val toolSummaries = toolsWithEmails.map { twe ->
-                    val availableCount = twe.emails.count { it.email.status == EmailStatus.AVAILABLE }
-                    ToolSummary(
-                        toolId = twe.tool.id,
-                        toolName = twe.tool.name,
-                        currentActiveEmail = twe.currentActiveEmail?.address,
-                        totalEmails = twe.emails.size,
-                        availableEmails = availableCount
-                    )
-                }
-
-                val emailRows = allEmails.map { email ->
-                    val toolNames = toolsWithEmails
-                        .filter { twe -> twe.emails.any { it.email.id == email.id } }
-                        .map { it.tool.name }
-                    EmailStatusRow(
-                        emailId = email.id,
-                        emailAddress = email.address,
-                        toolNames = toolNames,
-                        status = email.status,
-                        availableAt = email.availableAt
-                    )
-                }
+            ) { devices, emails ->
+                val totalTools = devices.sumOf { it.tools.size }
+                val available = emails.count { it.status == EmailStatus.AVAILABLE }
+                val limited = emails.count { it.status == EmailStatus.LIMITED }
 
                 DashboardUiState(
-                    toolSummaries = toolSummaries,
-                    emailStatusRows = emailRows,
-                    isLoading = false
+                    devicesWithTools = devices,
+                    allEmails = emails,
+                    isLoading = false,
+                    totalDevices = devices.size,
+                    totalTools = totalTools,
+                    totalEmails = emails.size,
+                    totalAvailable = available,
+                    totalLimited = limited
                 )
-            }.collect { state ->
-                _uiState.value = state.copy(
-                    limitDialogEmail = _uiState.value.limitDialogEmail,
-                    snackbarMessage = _uiState.value.snackbarMessage
-                )
+            }.collect { newState ->
+                _uiState.update { old ->
+                    newState.copy(
+                        limitDialogEmailId = old.limitDialogEmailId,
+                        limitDialogEmailAddress = old.limitDialogEmailAddress,
+                        snackbarMessage = old.snackbarMessage
+                    )
+                }
             }
         }
     }
 
-    fun showLimitDialog(emailRow: EmailStatusRow) {
-        _uiState.update { it.copy(limitDialogEmail = emailRow) }
+    fun showLimitDialog(emailId: Long, emailAddress: String) {
+        _uiState.update { it.copy(limitDialogEmailId = emailId, limitDialogEmailAddress = emailAddress) }
     }
 
     fun dismissLimitDialog() {
-        _uiState.update { it.copy(limitDialogEmail = null) }
+        _uiState.update { it.copy(limitDialogEmailId = null, limitDialogEmailAddress = null) }
     }
 
     fun limitEmail(emailId: Long, availableAt: Long) {
         viewModelScope.launch {
-            val rotatedTools = limitEmailUseCase(emailId, availableAt)
+            val rotated = limitEmailUseCase(emailId, availableAt)
             _uiState.update {
                 it.copy(
-                    limitDialogEmail = null,
-                    snackbarMessage = "Email limited. ${rotatedTools.size} tool(s) rotated."
+                    limitDialogEmailId = null,
+                    limitDialogEmailAddress = null,
+                    snackbarMessage = "Email limited. ${rotated.size} tool(s) rotated."
                 )
             }
         }

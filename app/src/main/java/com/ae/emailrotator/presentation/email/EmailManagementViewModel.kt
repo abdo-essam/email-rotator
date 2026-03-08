@@ -7,12 +7,14 @@ import com.ae.emailrotator.domain.model.Tool
 import com.ae.emailrotator.domain.usecase.email.DeleteEmailUseCase
 import com.ae.emailrotator.domain.usecase.email.GetEmailsUseCase
 import com.ae.emailrotator.domain.usecase.email.LimitEmailUseCase
-import com.ae.emailrotator.domain.usecase.tool.GetToolsWithEmailsUseCase
+import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+
 
 data class EmailManagementUiState(
     val emails: List<Email> = emptyList(),
@@ -31,7 +33,7 @@ class EmailManagementViewModel @Inject constructor(
     private val getEmailsUseCase: GetEmailsUseCase,
     private val deleteEmailUseCase: DeleteEmailUseCase,
     private val limitEmailUseCase: LimitEmailUseCase,
-    private val getToolsWithEmailsUseCase: GetToolsWithEmailsUseCase
+    private val getToolsUseCase: GetToolsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EmailManagementUiState())
@@ -42,14 +44,14 @@ class EmailManagementViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getToolsWithEmailsUseCase().collect { toolsWithEmails ->
+            getToolsUseCase().collect { toolsWithEmails ->
                 _uiState.update { it.copy(allTools = toolsWithEmails.map { t -> t.tool }) }
             }
         }
 
         viewModelScope.launch {
-            combine(searchQuery, selectedToolFilter) { query, toolFilter ->
-                Pair(query, toolFilter)
+            combine(searchQuery, selectedToolFilter) { query, filter ->
+                Pair(query, filter)
             }.flatMapLatest { (query, toolFilter) ->
                 when {
                     toolFilter != null -> getEmailsUseCase.byTool(toolFilter)
@@ -60,9 +62,7 @@ class EmailManagementViewModel @Inject constructor(
                 val query = searchQuery.value
                 val filtered = if (query.isNotBlank() && selectedToolFilter.value != null) {
                     emails.filter { it.address.contains(query, ignoreCase = true) }
-                } else {
-                    emails
-                }
+                } else emails
                 _uiState.update {
                     it.copy(
                         emails = filtered,
@@ -75,55 +75,25 @@ class EmailManagementViewModel @Inject constructor(
         }
     }
 
-    fun updateSearchQuery(query: String) {
-        searchQuery.value = query
-    }
-
-    fun updateToolFilter(toolId: Long?) {
-        selectedToolFilter.value = toolId
-    }
-
-    fun showLimitDialog(email: Email) {
-        _uiState.update { it.copy(limitDialogEmail = email) }
-    }
-
-    fun dismissLimitDialog() {
-        _uiState.update { it.copy(limitDialogEmail = null) }
-    }
-
-    fun showDeleteDialog(email: Email) {
-        _uiState.update { it.copy(deleteDialogEmail = email) }
-    }
-
-    fun dismissDeleteDialog() {
-        _uiState.update { it.copy(deleteDialogEmail = null) }
-    }
+    fun updateSearchQuery(query: String) { searchQuery.value = query }
+    fun updateToolFilter(toolId: Long?) { selectedToolFilter.value = toolId }
+    fun showLimitDialog(email: Email) { _uiState.update { it.copy(limitDialogEmail = email) } }
+    fun dismissLimitDialog() { _uiState.update { it.copy(limitDialogEmail = null) } }
+    fun showDeleteDialog(email: Email) { _uiState.update { it.copy(deleteDialogEmail = email) } }
+    fun dismissDeleteDialog() { _uiState.update { it.copy(deleteDialogEmail = null) } }
+    fun clearSnackbar() { _uiState.update { it.copy(snackbarMessage = null) } }
 
     fun limitEmail(emailId: Long, availableAt: Long) {
         viewModelScope.launch {
             limitEmailUseCase(emailId, availableAt)
-            _uiState.update {
-                it.copy(
-                    limitDialogEmail = null,
-                    snackbarMessage = "Email limited and rotation triggered."
-                )
-            }
+            _uiState.update { it.copy(limitDialogEmail = null, snackbarMessage = "Email limited.") }
         }
     }
 
     fun deleteEmail(emailId: Long) {
         viewModelScope.launch {
             deleteEmailUseCase(emailId)
-            _uiState.update {
-                it.copy(
-                    deleteDialogEmail = null,
-                    snackbarMessage = "Email deleted."
-                )
-            }
+            _uiState.update { it.copy(deleteDialogEmail = null, snackbarMessage = "Email deleted.") }
         }
-    }
-
-    fun clearSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = null) }
     }
 }

@@ -7,8 +7,10 @@ import kotlinx.coroutines.flow.Flow
 interface ToolRepository {
     fun getAllTools(): Flow<List<Tool>>
     fun getToolById(id: Long): Flow<Tool?>
+    fun getToolsByDeviceId(deviceId: Long): Flow<List<Tool>>
     fun getAllToolsWithEmails(): Flow<List<ToolWithEmails>>
     fun getToolWithEmails(toolId: Long): Flow<ToolWithEmails?>
+    fun getToolsWithEmailsByDevice(deviceId: Long): Flow<List<ToolWithEmails>>
     suspend fun insertTool(tool: Tool): Long
     suspend fun updateTool(tool: Tool)
     suspend fun deleteTool(id: Long)

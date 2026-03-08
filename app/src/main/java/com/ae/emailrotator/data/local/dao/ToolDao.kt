@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ToolDao {
+
     @Query("SELECT * FROM tools ORDER BY name ASC")
     fun getAllTools(): Flow<List<ToolEntity>>
 
@@ -14,6 +15,9 @@ interface ToolDao {
 
     @Query("SELECT * FROM tools WHERE id = :id")
     suspend fun getToolByIdOnce(id: Long): ToolEntity?
+
+    @Query("SELECT * FROM tools WHERE device_id = :deviceId ORDER BY name ASC")
+    fun getToolsByDeviceId(deviceId: Long): Flow<List<ToolEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(tool: ToolEntity): Long
@@ -28,8 +32,7 @@ interface ToolDao {
     suspend fun setActiveEmail(toolId: Long, emailId: Long?)
 
     @Query("""
-        SELECT t.* FROM tools t
-        INNER JOIN tool_email_cross_ref te ON t.id = te.tool_id
+        SELECT t.* FROM tools t INNER JOIN tool_email_cross_ref te ON t.id = te.tool_id
         WHERE te.email_id = :emailId
     """)
     suspend fun getToolsContainingEmail(emailId: Long): List<ToolEntity>

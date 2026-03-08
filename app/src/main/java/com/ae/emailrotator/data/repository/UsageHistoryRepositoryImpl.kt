@@ -11,20 +11,17 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class UsageHistoryRepositoryImpl @Inject constructor(
-    private val usageHistoryDao: UsageHistoryDao
+    private val dao: UsageHistoryDao
 ) : UsageHistoryRepository {
-
     override fun getAllHistory(): Flow<List<UsageHistory>> =
-        usageHistoryDao.getAllHistory().map { list -> list.map { it.toDomain() } }
-
+        dao.getAllHistory().map { list -> list.map { it.toDomain() } }
     override fun getHistoryForEmail(emailId: Long): Flow<List<UsageHistory>> =
-        usageHistoryDao.getHistoryForEmail(emailId).map { list -> list.map { it.toDomain() } }
-
+        dao.getHistoryForEmail(emailId).map { list -> list.map { it.toDomain() } }
     override fun getHistoryForTool(toolId: Long): Flow<List<UsageHistory>> =
-        usageHistoryDao.getHistoryForTool(toolId).map { list -> list.map { it.toDomain() } }
+        dao.getHistoryForTool(toolId).map { list -> list.map { it.toDomain() } }
 
     override suspend fun record(emailId: Long, toolId: Long, action: HistoryAction) {
-        usageHistoryDao.insert(
+        dao.insert(
             UsageHistoryEntity(
                 emailId = emailId,
                 toolId = toolId,

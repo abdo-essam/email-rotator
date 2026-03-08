@@ -15,23 +15,29 @@ class RotateEmailUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(toolId: Long): Email? {
         emailRepository.refreshAvailability()
-        val toolWithEmails = toolRepository.getToolWithEmailsOnce(toolId) ?: return null
-        val orderedEmails = toolWithEmails.emails.sortedBy { it.orderIndex }
-        if (orderedEmails.isEmpty()) {
+
+        val twe = toolRepository.getToolWithEmailsOnce(toolId) ?: return null
+        val ordered = twe.emails.sortedBy { it.orderIndex }
+
+        if (ordered.isEmpty()) {
             toolRepository.setActiveEmail(toolId, null)
             return null
         }
-        val currentActiveId = toolWithEmails.tool.currentActiveEmailId
+
+        val currentActiveId = twe.tool.currentActiveEmailId
         val now = System.currentTimeMillis()
-        val currentIndex = orderedEmails.indexOfFirst { it.email.id == currentActiveId }
+        val currentIndex = ordered.indexOfFirst { it.email.id == currentActiveId }
         val startIndex = if (currentIndex >= 0) currentIndex + 1 else 0
-        for (i in orderedEmails.indices) {
-            val idx = (startIndex + i) % orderedEmails.size
-            val candidate = orderedEmails[idx].email
+
+        for (i in ordered.indices) {
+            val idx = (startIndex + i) % ordered.size
+            val candidate = ordered[idx].email
+
             val isAvailable = candidate.status == EmailStatus.AVAILABLE ||
-                (candidate.status == EmailStatus.LIMITED &&
-                    candidate.availableAt != null &&
-                    candidate.availableAt <= now)
+                    (candidate.status == EmailStatus.LIMITED &&
+                            candidate.availableAt != null &&
+                            candidate.availableAt <= now)
+
             if (isAvailable && candidate.id != currentActiveId) {
                 if (candidate.status == EmailStatus.LIMITED) {
                     emailRepository.updateEmailStatus(candidate.id, EmailStatus.AVAILABLE, null)
@@ -41,15 +47,14 @@ class RotateEmailUseCase @Inject constructor(
                 return candidate
             }
         }
+
         if (currentActiveId != null) {
-            val currentEmail = orderedEmails.find { it.email.id == currentActiveId }?.email
-            if (currentEmail != null &&
-                (currentEmail.status == EmailStatus.AVAILABLE ||
-                    (currentEmail.availableAt != null && currentEmail.availableAt <= now))
-            ) {
-                return currentEmail
-            }
+            val current = ordered.find { it.email.id == currentActiveId }?.email
+            if (current != null && (current.status == EmailStatus.AVAILABLE ||
+                        (current.availableAt != null && current.availableAt <= now))
+            ) return current
         }
+
         toolRepository.setActiveEmail(toolId, null)
         return null
     }

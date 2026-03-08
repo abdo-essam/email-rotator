@@ -13,36 +13,39 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.ae.emailrotator.presentation.components.StatusBadge
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import com.ae.emailrotator.presentation.components.AnimatedStatusChip
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditToolScreen(
     navController: NavController,
     toolId: Long?,
+    deviceId: Long?,
     viewModel: AddEditToolViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(toolId) {
-        viewModel.initialize(toolId)
-    }
+    LaunchedEffect(toolId, deviceId) { viewModel.initialize(toolId, deviceId) }
 
     LaunchedEffect(uiState.savedSuccessfully) {
-        if (uiState.savedSuccessfully) {
-            navController.popBackStack()
-        }
+        if (uiState.savedSuccessfully) navController.popBackStack()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (uiState.isEditing) "Edit Tool" else "Add Tool")
+                    Text(
+                        if (uiState.isEditing) "Edit Tool" else "Add Tool",
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -52,19 +55,12 @@ fun AddEditToolScreen(
         }
     ) { padding ->
         if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -74,55 +70,93 @@ fun AddEditToolScreen(
                         onValueChange = { viewModel.updateToolName(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Tool Name") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Build, contentDescription = null)
-                        },
+                        placeholder = { Text("e.g. Cursor, VSCode, ChatGPT") },
+                        leadingIcon = { Icon(Icons.Default.Extension, null) },
                         isError = uiState.nameError != null,
                         supportingText = uiState.nameError?.let {
                             { Text(it, color = MaterialTheme.colorScheme.error) }
                         },
                         singleLine = true,
-                        shape = MaterialTheme.shapes.medium
+                        shape = RoundedCornerShape(14.dp)
                     )
                 }
 
                 item {
                     Text(
-                        text = "Assign Emails",
-                        style = MaterialTheme.typography.titleMedium
+                        "Assign Emails",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Select emails to use with this tool. Order determines rotation priority.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 if (uiState.allEmails.isEmpty()) {
                     item {
-                        Text(
-                            text = "No emails available. Create an email first.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    }
-                } else {
-                    items(uiState.allEmails) { email ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    Icons.Default.Email,
+                                    null,
+                                    modifier = Modifier.size(40.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "No emails available",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "Create an email first from the Emails tab",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(uiState.allEmails, key = { it.id }) { email ->
+                        val selected = email.id in uiState.selectedEmailIds
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (selected)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = email.address,
-                                        style = MaterialTheme.typography.bodyLarge
+                                        email.address,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    StatusBadge(status = email.status)
+                                    Spacer(Modifier.height(4.dp))
+                                    AnimatedStatusChip(email.status)
                                 }
                                 Checkbox(
-                                    checked = email.id in uiState.selectedEmailIds,
+                                    checked = selected,
                                     onCheckedChange = { viewModel.toggleEmail(email.id) }
                                 )
                             }
@@ -131,14 +165,12 @@ fun AddEditToolScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { viewModel.save() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         enabled = !uiState.isSaving,
-                        shape = MaterialTheme.shapes.medium
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         if (uiState.isSaving) {
                             CircularProgressIndicator(
@@ -147,16 +179,17 @@ fun AddEditToolScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                            Icon(Icons.Default.Check, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (uiState.isEditing) "Update Tool" else "Add Tool",
+                                style = MaterialTheme.typography.titleMedium
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (uiState.isEditing) "Update Tool" else "Add Tool")
                         }
                     }
                 }
+
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }

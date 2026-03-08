@@ -21,20 +21,11 @@ object WorkerModule {
         WorkManager.getInstance(context)
 
     fun enqueuePeriodicCheck(workManager: WorkManager) {
-        val request = PeriodicWorkRequestBuilder<EmailAvailabilityWorker>(
-            15, TimeUnit.MINUTES
-        )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiresBatteryNotLow(true)
-                    .build()
-            )
+        val request = PeriodicWorkRequestBuilder<EmailAvailabilityWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
             .build()
-
         workManager.enqueueUniquePeriodicWork(
-            "email_availability_check",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
+            "email_availability_check", ExistingPeriodicWorkPolicy.KEEP, request
         )
     }
 }

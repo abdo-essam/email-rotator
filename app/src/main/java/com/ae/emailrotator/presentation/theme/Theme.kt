@@ -9,32 +9,39 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryLight,
+    primary = PrimaryBlueLight,
     onPrimary = SurfaceDark,
-    primaryContainer = PrimaryDark,
-    secondary = Secondary,
+    primaryContainer = PrimaryBlueDark,
+    secondary = AccentPurple,
+    tertiary = AccentTeal,
     surface = SurfaceDark,
-    surfaceVariant = SurfaceVariantDark,
+    surfaceVariant = SurfaceCardDark,
     onSurface = OnSurfaceDark,
-    error = Error,
+    onSurfaceVariant = OnSurfaceSecondaryDark,
     background = SurfaceDark,
-    onBackground = OnSurfaceDark
+    onBackground = OnSurfaceDark,
+    outline = OutlineDark,
+    error = StatusRed
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Primary,
-    onPrimary = SurfaceVariantLight,
-    primaryContainer = PrimaryLight,
-    secondary = Secondary,
+    primary = PrimaryBlue,
+    onPrimary = Color.White,
+    primaryContainer = PrimaryBlueSubtle,
+    secondary = AccentPurple,
+    tertiary = AccentTeal,
     surface = SurfaceLight,
-    surfaceVariant = SurfaceVariantLight,
+    surfaceVariant = SurfaceCardLight,
     onSurface = OnSurfaceLight,
-    error = Error,
+    onSurfaceVariant = OnSurfaceSecondaryLight,
     background = SurfaceLight,
-    onBackground = OnSurfaceLight
+    onBackground = OnSurfaceLight,
+    outline = OutlineLight,
+    error = StatusRed
 )
 
 @Composable
@@ -47,14 +54,18 @@ fun EmailRotatorTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.surface.toArgb()
+            window.navigationBarColor = colorScheme.surface.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
         }
     }
-
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = AppTypography,
+        shapes = Shapes,
         content = content
     )
 }

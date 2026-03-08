@@ -6,7 +6,7 @@ import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.domain.model.Tool
 import com.ae.emailrotator.domain.usecase.email.GetEmailsUseCase
 import com.ae.emailrotator.domain.usecase.tool.AddToolUseCase
-import com.ae.emailrotator.domain.usecase.tool.GetToolsWithEmailsUseCase
+import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import com.ae.emailrotator.domain.usecase.tool.UpdateToolUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -15,6 +15,7 @@ import javax.inject.Inject
 
 data class AddEditToolUiState(
     val toolName: String = "",
+    val deviceId: Long = 0L,
     val allEmails: List<Email> = emptyList(),
     val selectedEmailIds: Set<Long> = emptySet(),
     val isEditing: Boolean = false,
@@ -27,7 +28,7 @@ data class AddEditToolUiState(
 @HiltViewModel
 class AddEditToolViewModel @Inject constructor(
     private val getEmailsUseCase: GetEmailsUseCase,
-    private val getToolsWithEmailsUseCase: GetToolsWithEmailsUseCase,
+    private val getToolsUseCase: GetToolsUseCase,
     private val addToolUseCase: AddToolUseCase,
     private val updateToolUseCase: UpdateToolUseCase
 ) : ViewModel() {
@@ -37,21 +38,20 @@ class AddEditToolViewModel @Inject constructor(
 
     private var editingTool: Tool? = null
 
-    fun initialize(toolId: Long?) {
+    fun initialize(toolId: Long?, deviceId: Long?) {
         viewModelScope.launch {
             val allEmails = getEmailsUseCase().first()
             _uiState.update { it.copy(allEmails = allEmails) }
 
             if (toolId != null) {
-                val toolWithEmails = getToolsWithEmailsUseCase.byId(toolId).first()
-                if (toolWithEmails != null) {
-                    editingTool = toolWithEmails.tool
+                val twe = getToolsUseCase.byId(toolId).first()
+                if (twe != null) {
+                    editingTool = twe.tool
                     _uiState.update {
                         it.copy(
-                            toolName = toolWithEmails.tool.name,
-                            selectedEmailIds = toolWithEmails.emails
-                                .map { e -> e.email.id }
-                                .toSet(),
+                            toolName = twe.tool.name,
+                            deviceId = twe.tool.deviceId,
+                            selectedEmailIds = twe.emails.map { e -> e.email.id }.toSet(),
                             isEditing = true,
                             isLoading = false
                         )
@@ -59,6 +59,8 @@ class AddEditToolViewModel @Inject constructor(
                 } else {
                     _uiState.update { it.copy(isLoading = false) }
                 }
+            } else if (deviceId != null) {
+                _uiState.update { it.copy(deviceId = deviceId, isLoading = false) }
             } else {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -88,21 +90,17 @@ class AddEditToolViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-
             try {
                 if (state.isEditing && editingTool != null) {
                     val updated = editingTool!!.copy(name = name)
                     updateToolUseCase(updated, state.selectedEmailIds.toList())
                 } else {
-                    addToolUseCase(name, state.selectedEmailIds.toList())
+                    addToolUseCase(name, state.deviceId, state.selectedEmailIds.toList())
                 }
                 _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(
-                        isSaving = false,
-                        nameError = "Failed to save: ${e.message}"
-                    )
+                    it.copy(isSaving = false, nameError = "Failed to save: ${e.message}")
                 }
             }
         }

@@ -9,29 +9,15 @@ import androidx.room.Index
     tableName = "tool_email_cross_ref",
     primaryKeys = ["tool_id", "email_id"],
     foreignKeys = [
-        ForeignKey(
-            entity = ToolEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["tool_id"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = EmailEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["email_id"],
-            onDelete = ForeignKey.CASCADE
-        )
+        ForeignKey(entity = ToolEntity::class, parentColumns = ["id"],
+            childColumns = ["tool_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = EmailEntity::class, parentColumns = ["id"],
+            childColumns = ["email_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [
-        Index("tool_id"),
-        Index("email_id")
-    ]
+    indices = [Index("tool_id"), Index("email_id")]
 )
 data class ToolEmailCrossRef(
-    @ColumnInfo(name = "tool_id")
-    val toolId: Long,
-    @ColumnInfo(name = "email_id")
-    val emailId: Long,
-    @ColumnInfo(name = "order_index")
-    val orderIndex: Int
+    @ColumnInfo(name = "tool_id") val toolId: Long,
+    @ColumnInfo(name = "email_id") val emailId: Long,
+    @ColumnInfo(name = "order_index") val orderIndex: Int
 )

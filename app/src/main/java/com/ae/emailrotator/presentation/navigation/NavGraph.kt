@@ -16,41 +16,58 @@ import com.ae.emailrotator.presentation.email.EmailManagementScreen
 import com.ae.emailrotator.presentation.history.HistoryScreen
 import com.ae.emailrotator.presentation.tool.AddEditToolScreen
 import com.ae.emailrotator.presentation.tool.ToolManagementScreen
+import androidx.compose.animation.*
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import com.ae.emailrotator.presentation.device.DeviceDetailScreen
+import com.ae.emailrotator.presentation.device.DevicesScreen
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainNavGraph(
-    isDarkMode: Boolean,
-    onToggleDarkMode: () -> Unit
-) {
+fun MainNavGraph(isDarkMode: Boolean, onToggleDarkMode: () -> Unit) {
     val navController = rememberNavController()
-    val bottomNavItems = listOf(
-        BottomNavItem.Dashboard,
-        BottomNavItem.Emails,
-        BottomNavItem.Tools,
-        BottomNavItem.History
+    val items = listOf(
+        BottomNavItem.Dashboard, BottomNavItem.Devices,
+        BottomNavItem.Emails, BottomNavItem.History
     )
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    val showBottomBar = currentRoute in bottomNavItems.map { it.route }
+    val showBottomBar = currentRoute in items.map { it.route }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
+                ) {
+                    items.forEach { item ->
+                        val selected = currentRoute == item.route
                         NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) },
-                            selected = currentRoute == item.route,
+                            icon = {
+                                Icon(
+                                    if (selected) item.selectedIcon else item.unselectedIcon,
+                                    contentDescription = item.title
+                                )
+                            },
+                            label = {
+                                Text(
+                                    item.title,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            },
+                            selected = selected,
                             onClick = {
                                 if (currentRoute != item.route) {
                                     navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -68,50 +85,64 @@ fun MainNavGraph(
             modifier = Modifier.padding(padding)
         ) {
             composable(BottomNavItem.Dashboard.route) {
-                DashboardScreen(
-                    isDarkMode = isDarkMode,
-                    onToggleDarkMode = onToggleDarkMode
-                )
+                DashboardScreen(navController, isDarkMode, onToggleDarkMode)
+            }
+            composable(BottomNavItem.Devices.route) {
+                DevicesScreen(navController)
             }
             composable(BottomNavItem.Emails.route) {
-                EmailManagementScreen(navController = navController)
-            }
-            composable(BottomNavItem.Tools.route) {
-                ToolManagementScreen(navController = navController)
+                EmailManagementScreen(navController)
             }
             composable(BottomNavItem.History.route) {
                 HistoryScreen()
             }
-            composable(NavRoutes.ADD_EMAIL) {
-                AddEditEmailScreen(
-                    navController = navController,
-                    emailId = null
-                )
+            composable(
+                NavRoutes.DEVICE_DETAIL,
+                arguments = listOf(navArgument("deviceId") { type = NavType.LongType })
+            ) { entry ->
+                DeviceDetailScreen(navController, entry.arguments!!.getLong("deviceId"))
             }
             composable(
-                route = NavRoutes.EDIT_EMAIL,
-                arguments = listOf(navArgument("emailId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val emailId = backStackEntry.arguments?.getLong("emailId")
-                AddEditEmailScreen(
-                    navController = navController,
-                    emailId = emailId
-                )
-            }
-            composable(NavRoutes.ADD_TOOL) {
-                AddEditToolScreen(
-                    navController = navController,
-                    toolId = null
-                )
+                NavRoutes.ADD_TOOL,
+                arguments = listOf(navArgument("deviceId") { type = NavType.LongType })
+            ) { entry ->
+                AddEditToolScreen(navController, toolId = null, deviceId = entry.arguments!!.getLong("deviceId"))
             }
             composable(
-                route = NavRoutes.EDIT_TOOL,
+                NavRoutes.EDIT_TOOL,
                 arguments = listOf(navArgument("toolId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val toolId = backStackEntry.arguments?.getLong("toolId")
-                AddEditToolScreen(
-                    navController = navController,
-                    toolId = toolId
+            ) { entry ->
+                AddEditToolScreen(navController, toolId = entry.arguments!!.getLong("toolId"), deviceId = null)
+            }
+
+            composable(
+                NavRoutes.TOOL_DETAIL,
+                arguments = listOf(navArgument("toolId") { type = NavType.LongType })
+            ) { entry ->
+                ToolDetailScreen(navController, entry.arguments!!.getLong("toolId"))
+            }
+
+            composable(NavRoutes.ADD_EMAIL) {
+                AddEditEmailScreen(navController, emailId = null, preselectedToolId = null)
+            }
+            composable(
+                NavRoutes.ADD_EMAIL_FOR_TOOL,
+                arguments = listOf(navArgument("toolId") { type = NavType.LongType })
+            ) { entry ->
+                AddEditEmailScreen(
+                    navController,
+                    emailId = null,
+                    preselectedToolId = entry.arguments!!.getLong("toolId")
+                )
+            }
+            composable(
+                NavRoutes.EDIT_EMAIL,
+                arguments = listOf(navArgument("emailId") { type = NavType.LongType })
+            ) { entry ->
+                AddEditEmailScreen(
+                    navController,
+                    emailId = entry.arguments!!.getLong("emailId"),
+                    preselectedToolId = null
                 )
             }
         }

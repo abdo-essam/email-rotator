@@ -25,90 +25,64 @@ class ToolRepositoryImpl @Inject constructor(
     override fun getToolById(id: Long): Flow<Tool?> =
         toolDao.getToolById(id).map { it?.toDomain() }
 
-    override fun getAllToolsWithEmails(): Flow<List<ToolWithEmails>> {
-        return combine(
-            toolDao.getAllTools(),
-            toolEmailDao.getAllToolEmailJoins()
-        ) { tools, joins ->
-            tools.map { toolEntity ->
-                val tool = toolEntity.toDomain()
-                val emailsInTool = joins
-                    .filter { it.toolId == tool.id }
-                    .map { it.toEmailInTool() }
-                val activeEmail = tool.currentActiveEmailId?.let { activeId ->
-                    emailsInTool.find { it.email.id == activeId }?.email
+    override fun getToolsByDeviceId(deviceId: Long): Flow<List<Tool>> =
+        toolDao.getToolsByDeviceId(deviceId).map { list -> list.map { it.toDomain() } }
+
+    override fun getAllToolsWithEmails(): Flow<List<ToolWithEmails>> =
+        combine(toolDao.getAllTools(), toolEmailDao.getAllToolEmailJoins()) { tools, joins ->
+            tools.map { te ->
+                val tool = te.toDomain()
+                val emails = joins.filter { it.toolId == tool.id }.map { it.toEmailInTool() }
+                val active = tool.currentActiveEmailId?.let { id ->
+                    emails.find { it.email.id == id }?.email
                 }
-                ToolWithEmails(
-                    tool = tool,
-                    emails = emailsInTool,
-                    currentActiveEmail = activeEmail
-                )
+                ToolWithEmails(tool, emails, active)
             }
         }
-    }
 
-    override fun getToolWithEmails(toolId: Long): Flow<ToolWithEmails?> {
-        return combine(
-            toolDao.getToolById(toolId),
-            toolEmailDao.getEmailsForToolFlow(toolId)
-        ) { toolEntity, joins ->
-            toolEntity?.let {
+    override fun getToolWithEmails(toolId: Long): Flow<ToolWithEmails?> =
+        combine(toolDao.getToolById(toolId), toolEmailDao.getEmailsForToolFlow(toolId)) { te, joins ->
+            te?.let {
                 val tool = it.toDomain()
-                val emailsInTool = joins.map { j -> j.toEmailInTool() }
-                val activeEmail = tool.currentActiveEmailId?.let { activeId ->
-                    emailsInTool.find { e -> e.email.id == activeId }?.email
+                val emails = joins.map { j -> j.toEmailInTool() }
+                val active = tool.currentActiveEmailId?.let { id ->
+                    emails.find { e -> e.email.id == id }?.email
                 }
-                ToolWithEmails(
-                    tool = tool,
-                    emails = emailsInTool,
-                    currentActiveEmail = activeEmail
-                )
+                ToolWithEmails(tool, emails, active)
             }
         }
-    }
 
-    override suspend fun insertTool(tool: Tool): Long =
-        toolDao.insert(tool.toEntity())
+    override fun getToolsWithEmailsByDevice(deviceId: Long): Flow<List<ToolWithEmails>> =
+        combine(toolDao.getToolsByDeviceId(deviceId), toolEmailDao.getAllToolEmailJoins()) { tools, joins ->
+            tools.map { te ->
+                val tool = te.toDomain()
+                val emails = joins.filter { it.toolId == tool.id }.map { it.toEmailInTool() }
+                val active = tool.currentActiveEmailId?.let { id ->
+                    emails.find { it.email.id == id }?.email
+                }
+                ToolWithEmails(tool, emails, active)
+            }
+        }
 
-    override suspend fun updateTool(tool: Tool) =
-        toolDao.update(tool.toEntity())
-
-    override suspend fun deleteTool(id: Long) =
-        toolDao.delete(id)
-
-    override suspend fun setActiveEmail(toolId: Long, emailId: Long?) =
-        toolDao.setActiveEmail(toolId, emailId)
+    override suspend fun insertTool(tool: Tool): Long = toolDao.insert(tool.toEntity())
+    override suspend fun updateTool(tool: Tool) = toolDao.update(tool.toEntity())
+    override suspend fun deleteTool(id: Long) = toolDao.delete(id)
+    override suspend fun setActiveEmail(toolId: Long, emailId: Long?) = toolDao.setActiveEmail(toolId, emailId)
 
     override suspend fun assignEmailsToTool(toolId: Long, emailIds: List<Long>) {
         toolEmailDao.deleteAllForTool(toolId)
-        val crossRefs = emailIds.mapIndexed { index, emailId ->
-            ToolEmailCrossRef(
-                toolId = toolId,
-                emailId = emailId,
-                orderIndex = index
-            )
-        }
-        toolEmailDao.insertAll(crossRefs)
+        toolEmailDao.insertAll(emailIds.mapIndexed { i, id -> ToolEmailCrossRef(toolId, id, i) })
     }
 
-    override suspend fun getToolByIdOnce(id: Long): Tool? =
-        toolDao.getToolByIdOnce(id)?.toDomain()
-
+    override suspend fun getToolByIdOnce(id: Long): Tool? = toolDao.getToolByIdOnce(id)?.toDomain()
     override suspend fun getToolsWithEmailOnce(emailId: Long): List<Tool> =
         toolDao.getToolsContainingEmail(emailId).map { it.toDomain() }
 
     override suspend fun getToolWithEmailsOnce(toolId: Long): ToolWithEmails? {
-        val toolEntity = toolDao.getToolByIdOnce(toolId) ?: return null
-        val tool = toolEntity.toDomain()
-        val joins = toolEmailDao.getEmailsForTool(toolId)
-        val emailsInTool = joins.map { it.toEmailInTool() }
-        val activeEmail = tool.currentActiveEmailId?.let { activeId ->
-            emailsInTool.find { it.email.id == activeId }?.email
-        }
-        return ToolWithEmails(
-            tool = tool,
-            emails = emailsInTool,
-            currentActiveEmail = activeEmail
-        )
+        val te = toolDao.getToolByIdOnce(toolId) ?: return null
+        val tool = te.toDomain()
+        val emails = toolEmailDao.getEmailsForTool(toolId).map { it.toEmailInTool() }
+        val active = tool.currentActiveEmailId?.let { id -> emails.find { it.email.id == id }?.email }
+        return ToolWithEmails(tool, emails, active)
     }
 }

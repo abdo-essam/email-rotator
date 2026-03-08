@@ -13,17 +13,13 @@ class DeleteEmailUseCase @Inject constructor(
     suspend operator fun invoke(emailId: Long) {
         val tools = toolRepository.getToolsWithEmailOnce(emailId)
         for (tool in tools) {
-            val toolWithEmails = toolRepository.getToolWithEmailsOnce(tool.id)
-            val remaining = toolWithEmails?.emails
-                ?.map { it.email.id }
+            val twe = toolRepository.getToolWithEmailsOnce(tool.id)
+            val remaining = twe?.emails?.map { it.email.id }
                 ?.filter { it != emailId } ?: emptyList()
             toolRepository.assignEmailsToTool(tool.id, remaining)
             if (tool.currentActiveEmailId == emailId) {
-                if (remaining.isNotEmpty()) {
-                    rotateEmailUseCase(tool.id)
-                } else {
-                    toolRepository.setActiveEmail(tool.id, null)
-                }
+                if (remaining.isNotEmpty()) rotateEmailUseCase(tool.id)
+                else toolRepository.setActiveEmail(tool.id, null)
             }
         }
         emailRepository.deleteEmail(emailId)

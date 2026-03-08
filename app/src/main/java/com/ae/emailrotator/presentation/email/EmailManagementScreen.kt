@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,16 +28,16 @@ fun EmailManagementScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.snackbarMessage) {
-        uiState.snackbarMessage?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
+        uiState.snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
     }
 
     uiState.limitDialogEmail?.let { email ->
-        LimitEmailDialog(
+        LimitEmailBottomSheet(
             emailAddress = email.address,
-            onConfirm = { timestamp -> viewModel.limitEmail(email.id, timestamp) },
+            onConfirm = { viewModel.limitEmail(email.id, it) },
             onDismiss = { viewModel.dismissLimitDialog() }
         )
     }
@@ -44,7 +45,7 @@ fun EmailManagementScreen(
     uiState.deleteDialogEmail?.let { email ->
         ConfirmDeleteDialog(
             title = "Delete Email",
-            message = "Are you sure you want to delete ${email.address}? It will be removed from all assigned tools.",
+            message = "Delete \"${email.address}\"? It will be removed from all assigned tools.",
             onConfirm = { viewModel.deleteEmail(email.id) },
             onDismiss = { viewModel.dismissDeleteDialog() }
         )
@@ -54,46 +55,49 @@ fun EmailManagementScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Emails") },
+                title = {
+                    Column {
+                        Text("Emails", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            "${uiState.emails.size} email(s)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate(NavRoutes.ADD_EMAIL) }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Email")
-            }
+            ExtendedFloatingActionButton(
+                onClick = { navController.navigate(NavRoutes.ADD_EMAIL) },
+                icon = { Icon(Icons.Default.Add, null) },
+                text = { Text("Add Email") }
+            )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Search
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Search emails...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(Icons.Default.Clear, "Clear")
                         }
                     }
                 },
                 singleLine = true,
-                shape = MaterialTheme.shapes.large
+                shape = RoundedCornerShape(16.dp)
             )
 
+            // Tool filter chips
             if (uiState.allTools.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -103,7 +107,8 @@ fun EmailManagementScreen(
                         FilterChip(
                             selected = uiState.selectedToolFilter == null,
                             onClick = { viewModel.updateToolFilter(null) },
-                            label = { Text("All") }
+                            label = { Text("All") },
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                     items(uiState.allTools) { tool ->
@@ -111,55 +116,49 @@ fun EmailManagementScreen(
                             selected = uiState.selectedToolFilter == tool.id,
                             onClick = {
                                 viewModel.updateToolFilter(
-                                    if (uiState.selectedToolFilter == tool.id) null
-                                    else tool.id
+                                    if (uiState.selectedToolFilter == tool.id) null else tool.id
                                 )
                             },
-                            label = { Text(tool.name) }
+                            label = { Text(tool.name) },
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
             }
 
             if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else if (uiState.emails.isEmpty()) {
-                EmptyState(
-                    icon = {
-                        Icon(
-                            Icons.Default.Email,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
-                    },
-                    title = "No emails yet",
-                    subtitle = "Add your first email to get started"
+                EmptyStateIllustration(
+                    icon = Icons.Default.Email,
+                    title = "No emails found",
+                    subtitle = if (uiState.searchQuery.isNotBlank()) "Try a different search"
+                    else "Add your first email to get started"
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.emails, key = { it.id }) { email ->
-                        EmailCard(
+                        val toolNames = uiState.allTools
+                            .filter { it.id in email.assignedToolIds }
+                            .map { it.name }
+
+                        ModernEmailCard(
                             emailAddress = email.address,
                             status = email.status,
                             availableAt = email.availableAt,
-                            toolNames = uiState.allTools.filter { it.id in email.assignedToolIds }.map { it.name },
+                            toolNames = toolNames,
                             onLimitClick = { viewModel.showLimitDialog(email) },
                             onEditClick = { navController.navigate(NavRoutes.editEmail(email.id)) },
                             onDeleteClick = { viewModel.showDeleteDialog(email) }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
         }

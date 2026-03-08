@@ -16,7 +16,7 @@ data class HistoryUiState(
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
-    private val usageHistoryRepository: UsageHistoryRepository
+    private val repository: UsageHistoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistoryUiState())
@@ -24,10 +24,8 @@ class HistoryViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            usageHistoryRepository.getAllHistory().collect { list ->
-                _uiState.update {
-                    it.copy(history = list, isLoading = false)
-                }
+            repository.getAllHistory().collect { list ->
+                _uiState.update { it.copy(history = list, isLoading = false) }
             }
         }
     }

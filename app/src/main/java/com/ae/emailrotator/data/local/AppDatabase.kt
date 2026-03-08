@@ -10,24 +10,26 @@ import com.ae.emailrotator.data.local.entity.EmailEntity
 import com.ae.emailrotator.data.local.entity.ToolEmailCrossRef
 import com.ae.emailrotator.data.local.entity.ToolEntity
 import com.ae.emailrotator.data.local.entity.UsageHistoryEntity
+import androidx.room.TypeConverters
+import com.ae.emailrotator.data.local.converter.Converters
+import com.ae.emailrotator.data.local.dao.DeviceDao
+import com.ae.emailrotator.data.local.entity.DeviceEntity
+
 
 @Database(
     entities = [
-        EmailEntity::class,
-        ToolEntity::class,
-        ToolEmailCrossRef::class,
-        UsageHistoryEntity::class
+        DeviceEntity::class, EmailEntity::class, ToolEntity::class,
+        ToolEmailCrossRef::class, UsageHistoryEntity::class
     ],
-    version = 1,
-    exportSchema = false
+    version = 1, exportSchema = false
 )
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun deviceDao(): DeviceDao
     abstract fun emailDao(): EmailDao
     abstract fun toolDao(): ToolDao
     abstract fun toolEmailDao(): ToolEmailDao
     abstract fun usageHistoryDao(): UsageHistoryDao
 
-    companion object {
-        const val DATABASE_NAME = "email_rotator_db"
-    }
+    companion object { const val DATABASE_NAME = "email_rotator_db" }
 }

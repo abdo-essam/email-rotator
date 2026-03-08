@@ -12,10 +12,10 @@ class AddEmailUseCase @Inject constructor(
     suspend operator fun invoke(email: Email, toolIds: List<Long>): Long {
         val emailId = emailRepository.insertEmail(email)
         for (toolId in toolIds) {
-            val toolWithEmails = toolRepository.getToolWithEmailsOnce(toolId)
-            val existingIds = toolWithEmails?.emails?.map { it.email.id } ?: emptyList()
-            toolRepository.assignEmailsToTool(toolId, existingIds + emailId)
-            if (toolWithEmails?.tool?.currentActiveEmailId == null) {
+            val twe = toolRepository.getToolWithEmailsOnce(toolId)
+            val existing = twe?.emails?.map { it.email.id } ?: emptyList()
+            toolRepository.assignEmailsToTool(toolId, existing + emailId)
+            if (twe?.tool?.currentActiveEmailId == null) {
                 toolRepository.setActiveEmail(toolId, emailId)
             }
         }
