@@ -10,8 +10,6 @@ import com.ae.emailrotator.data.local.entity.EmailEntity
 import com.ae.emailrotator.data.local.entity.ToolEmailCrossRef
 import com.ae.emailrotator.data.local.entity.ToolEntity
 import com.ae.emailrotator.data.local.entity.UsageHistoryEntity
-import androidx.room.TypeConverters
-import com.ae.emailrotator.data.local.converter.Converters
 import com.ae.emailrotator.data.local.dao.DeviceDao
 import com.ae.emailrotator.data.local.entity.DeviceEntity
 
@@ -23,7 +21,6 @@ import com.ae.emailrotator.data.local.entity.DeviceEntity
     ],
     version = 1, exportSchema = false
 )
-@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
     abstract fun emailDao(): EmailDao
