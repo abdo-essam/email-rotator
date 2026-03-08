@@ -27,6 +27,7 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.ae.emailrotator.presentation.device.DeviceDetailScreen
 import com.ae.emailrotator.presentation.device.DevicesScreen
+import com.ae.emailrotator.presentation.tool.ToolDetailScreen
 
 
 @OptIn(ExperimentalMaterial3Api::class)
