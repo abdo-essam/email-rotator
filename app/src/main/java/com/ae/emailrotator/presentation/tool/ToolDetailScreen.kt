@@ -211,7 +211,7 @@ fun ToolDetailScreen(
                         }
                     } else {
                         val sorted = twe.emails.sortedBy { it.orderIndex }
-                        itemsIndexed(sorted, key = { _, eit -> eit.email.id }) { index, eit ->
+                        itemsIndexed(sorted, key = { _, eit -> "rot_email_${eit.email.id}" }) { index, eit ->
                             val isActive = twe.currentActiveEmail?.id == eit.email.id
 
                             Card(

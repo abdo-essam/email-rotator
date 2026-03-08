@@ -128,7 +128,7 @@ fun AddEditToolScreen(
                         }
                     }
                 } else {
-                    items(uiState.allEmails, key = { it.id }) { email ->
+                    items(uiState.allEmails, key = { "sel_email_${it.id}" }) { email ->
                         val selected = email.id in uiState.selectedEmailIds
 
                         Card(

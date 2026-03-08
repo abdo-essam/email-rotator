@@ -180,7 +180,7 @@ fun DeviceDetailScreen(
                             )
                         }
                     } else {
-                        items(dwt.tools, key = { it.tool.id }) { twe ->
+                        items(dwt.tools, key = { "detail_tool_${it.tool.id}" }) { twe ->
                             ModernToolCard(
                                 toolName = twe.tool.name,
                                 activeEmail = twe.currentActiveEmail?.address,

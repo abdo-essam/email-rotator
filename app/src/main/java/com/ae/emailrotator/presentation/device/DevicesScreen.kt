@@ -94,7 +94,7 @@ fun DevicesScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(uiState.devicesWithTools, key = { it.device.id }) { dwt ->
+                items(uiState.devicesWithTools, key = { "dev_${it.device.id}" }) { dwt ->
                     DeviceCard(
                         deviceName = dwt.device.name,
                         deviceType = dwt.device.type,

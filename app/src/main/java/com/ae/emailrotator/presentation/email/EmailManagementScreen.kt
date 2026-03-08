@@ -143,7 +143,7 @@ fun EmailManagementScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.emails, key = { it.id }) { email ->
+                    items(uiState.emails, key = { "mgmt_email_${it.id}" }) { email ->
                         val toolNames = uiState.allTools
                             .filter { it.id in email.assignedToolIds }
                             .map { it.name }

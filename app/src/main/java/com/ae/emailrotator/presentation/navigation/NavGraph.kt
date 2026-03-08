@@ -15,16 +15,8 @@ import com.ae.emailrotator.presentation.email.AddEditEmailScreen
 import com.ae.emailrotator.presentation.email.EmailManagementScreen
 import com.ae.emailrotator.presentation.history.HistoryScreen
 import com.ae.emailrotator.presentation.tool.AddEditToolScreen
-import com.ae.emailrotator.presentation.tool.ToolManagementScreen
-import androidx.compose.animation.*
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
-import androidx.navigation.navArgument
 import com.ae.emailrotator.presentation.device.DeviceDetailScreen
 import com.ae.emailrotator.presentation.device.DevicesScreen
 import com.ae.emailrotator.presentation.tool.ToolDetailScreen

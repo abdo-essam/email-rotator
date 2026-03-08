@@ -82,7 +82,7 @@ fun HistoryScreen(viewModel: HistoryViewModel = hiltViewModel()) {
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
-                    items(entries, key = { it.id }) { entry ->
+                    items(entries, key = { "hist_${it.id}" }) { entry ->
                         HistoryEntryCard(entry = entry)
                     }
                 }

@@ -21,7 +21,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.ae.emailrotator.domain.model.EmailStatus
 import com.ae.emailrotator.util.DateTimeUtil
-import androidx.compose.animation.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.Brush
@@ -49,7 +48,6 @@ import com.ae.emailrotator.presentation.theme.StatusGreen
 import com.ae.emailrotator.presentation.theme.StatusGreenBg
 import com.ae.emailrotator.presentation.theme.StatusRed
 import com.ae.emailrotator.presentation.theme.StatusRedBg
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,12 +117,14 @@ fun DashboardScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Stats Overview
-                item { StatsOverviewSection(uiState) }
+                // ===== Stats Overview =====
+                item(key = "header_stats") {
+                    StatsOverviewSection(uiState)
+                }
 
-                // Quick Device Overview
+                // ===== Quick Device Overview =====
                 if (uiState.devicesWithTools.isNotEmpty()) {
-                    item {
+                    item(key = "header_devices") {
                         SectionHeader(
                             title = "Devices",
                             subtitle = "${uiState.totalDevices} device(s)",
@@ -132,15 +132,21 @@ fun DashboardScreen(
                         )
                     }
 
-                    item {
+                    // LazyRow has its OWN key space — no conflict with outer LazyColumn
+                    item(key = "device_row") {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(uiState.devicesWithTools, key = { it.device.id }) { dwt ->
+                            items(
+                                uiState.devicesWithTools,
+                                key = { "drow_${it.device.id}" }
+                            ) { dwt ->
                                 DeviceQuickCard(
                                     deviceWithTools = dwt,
                                     onClick = {
-                                        navController.navigate(NavRoutes.deviceDetail(dwt.device.id))
+                                        navController.navigate(
+                                            NavRoutes.deviceDetail(dwt.device.id)
+                                        )
                                     }
                                 )
                             }
@@ -148,8 +154,8 @@ fun DashboardScreen(
                     }
                 }
 
-                // Active Emails per Tool
-                item {
+                // ===== Active Rotations =====
+                item(key = "header_rotations") {
                     SectionHeader(
                         title = "Active Rotations",
                         subtitle = "Current email assignments",
@@ -158,7 +164,7 @@ fun DashboardScreen(
                 }
 
                 if (uiState.devicesWithTools.isEmpty()) {
-                    item {
+                    item(key = "empty_devices") {
                         EmptyStateIllustration(
                             icon = Icons.Default.Devices,
                             title = "No devices yet",
@@ -166,9 +172,10 @@ fun DashboardScreen(
                         )
                     }
                 } else {
+                    // Flatten devices → tools into unique-key items
                     uiState.devicesWithTools.forEach { dwt ->
                         if (dwt.tools.isNotEmpty()) {
-                            item {
+                            item(key = "device_label_${dwt.device.id}") {
                                 Text(
                                     text = "${dwt.device.type.icon} ${dwt.device.name}",
                                     style = MaterialTheme.typography.titleSmall,
@@ -177,12 +184,20 @@ fun DashboardScreen(
                                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                                 )
                             }
-                            items(dwt.tools, key = { it.tool.id }) { twe ->
+                            items(
+                                dwt.tools,
+                                // PREFIX with device id to guarantee uniqueness
+                                // even if same tool id existed on another device (it won't
+                                // due to DB, but this is defensive)
+                                key = { "tool_${dwt.device.id}_${it.tool.id}" }
+                            ) { twe ->
                                 ActiveRotationCard(
                                     toolWithEmails = twe,
                                     deviceName = dwt.device.name,
                                     onToolClick = {
-                                        navController.navigate(NavRoutes.toolDetail(twe.tool.id))
+                                        navController.navigate(
+                                            NavRoutes.toolDetail(twe.tool.id)
+                                        )
                                     }
                                 )
                             }
@@ -190,9 +205,9 @@ fun DashboardScreen(
                     }
                 }
 
-                // Email Status Table
+                // ===== All Emails =====
                 if (uiState.allEmails.isNotEmpty()) {
-                    item {
+                    item(key = "header_emails") {
                         Spacer(Modifier.height(8.dp))
                         SectionHeader(
                             title = "All Emails",
@@ -201,7 +216,11 @@ fun DashboardScreen(
                         )
                     }
 
-                    items(uiState.allEmails, key = { it.id }) { email ->
+                    items(
+                        uiState.allEmails,
+                        // PREFIX with "email_" to avoid collision with tool keys
+                        key = { "email_${it.id}" }
+                    ) { email ->
                         EmailQuickStatusCard(
                             email = email,
                             onLimitClick = {
@@ -211,7 +230,9 @@ fun DashboardScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(16.dp)) }
+                item(key = "bottom_spacer") {
+                    Spacer(Modifier.height(16.dp))
+                }
             }
         }
     }
