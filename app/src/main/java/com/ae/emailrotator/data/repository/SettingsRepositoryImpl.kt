@@ -19,14 +19,9 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : SettingsRepository {
-    companion object {
-        val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
-    }
-
-    override fun isDarkMode(): Flow<Boolean> =
-        context.dataStore.data.map { it[DARK_MODE_KEY] ?: false }
-
+    private val key = booleanPreferencesKey("dark_mode")
+    override fun isDarkMode(): Flow<Boolean> = context.dataStore.data.map { it[key] ?: false }
     override suspend fun setDarkMode(enabled: Boolean) {
-        context.dataStore.edit { it[DARK_MODE_KEY] = enabled }
+        context.dataStore.edit { it[key] = enabled }
     }
 }

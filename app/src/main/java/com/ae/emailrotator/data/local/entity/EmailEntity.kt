@@ -5,12 +5,18 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "emails", indices = [Index(value = ["email"], unique = true)])
+@Entity(
+    tableName = "emails",
+    indices = [Index(value = ["email"], unique = true)]
+)
 data class EmailEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
     val email: String,
+    val tool: String,
     val status: String = "AVAILABLE",
     @ColumnInfo(name = "available_at")
-    val availableAt: Long? = null
+    val availableAt: Long? = null,
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis()
 )

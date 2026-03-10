@@ -1,65 +1,54 @@
 package com.ae.emailrotator.data.repository
 
 import com.ae.emailrotator.data.local.dao.EmailDao
-import com.ae.emailrotator.data.local.dao.ToolEmailDao
 import com.ae.emailrotator.data.mapper.toDomain
 import com.ae.emailrotator.data.mapper.toEntity
 import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.domain.model.EmailStatus
+import com.ae.emailrotator.domain.model.ToolType
 import com.ae.emailrotator.domain.repository.EmailRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
-
 class EmailRepositoryImpl @Inject constructor(
-    private val emailDao: EmailDao,
-    private val toolEmailDao: ToolEmailDao
+    private val dao: EmailDao
 ) : EmailRepository {
 
     override fun getAllEmails(): Flow<List<Email>> =
-        emailDao.getAllEmails().map { entities ->
-            entities.map { entity ->
-                val toolIds = toolEmailDao.getToolIdsForEmail(entity.id)
-                entity.toDomain().copy(assignedToolIds = toolIds)
-            }
-        }
+        dao.getAllEmails().map { list -> list.map { it.toDomain() } }
 
-    override fun getEmailById(id: Long): Flow<Email?> =
-        emailDao.getEmailById(id).map { entity ->
-            entity?.let {
-                val toolIds = toolEmailDao.getToolIdsForEmail(it.id)
-                it.toDomain().copy(assignedToolIds = toolIds)
-            }
-        }
+    override fun getEmailsByTool(tool: ToolType): Flow<List<Email>> =
+        dao.getEmailsByTool(tool.name).map { list -> list.map { it.toDomain() } }
+
+    override fun getAvailableByTool(tool: ToolType): Flow<List<Email>> =
+        dao.getAvailableByTool(tool.name).map { list -> list.map { it.toDomain() } }
 
     override fun searchEmails(query: String): Flow<List<Email>> =
-        emailDao.searchEmails(query).map { list ->
-            list.map { entity ->
-                val toolIds = toolEmailDao.getToolIdsForEmail(entity.id)
-                entity.toDomain().copy(assignedToolIds = toolIds)
-            }
-        }
+        dao.searchEmails(query).map { list -> list.map { it.toDomain() } }
 
-    override fun getEmailsByToolId(toolId: Long): Flow<List<Email>> =
-        emailDao.getEmailsByToolId(toolId).map { list -> list.map { it.toDomain() } }
+    override suspend fun getEmailById(id: Long): Email? =
+        dao.getById(id)?.toDomain()
 
-    override suspend fun insertEmail(email: Email): Long = emailDao.insert(email.toEntity())
-    override suspend fun updateEmail(email: Email) = emailDao.update(email.toEntity())
-    override suspend fun deleteEmail(id: Long) = emailDao.delete(id)
-    override suspend fun updateEmailStatus(id: Long, status: EmailStatus, availableAt: Long?) =
-        emailDao.updateStatus(id, status.name, availableAt)
+    override suspend fun insertEmail(email: Email): Long =
+        dao.insert(email.toEntity())
 
-    override suspend fun refreshAvailability(): List<Long> {
+    override suspend fun updateEmail(email: Email) =
+        dao.update(email.toEntity())
+
+    override suspend fun deleteEmail(id: Long) =
+        dao.delete(id)
+
+    override suspend fun limitEmail(id: Long, availableAt: Long) =
+        dao.limitEmail(id, availableAt)
+
+    override suspend fun refreshAvailability(): List<Email> {
         val now = System.currentTimeMillis()
-        val ids = emailDao.getEmailIdsToRefresh(now)
-        emailDao.markAvailableWhereTimeReached(now)
-        return ids
+        val expired = dao.getExpiredLimited(now).map { it.toDomain() }
+        dao.markAvailableWhereExpired(now)
+        return expired
     }
 
-    override suspend fun getEmailByIdOnce(id: Long): Email? =
-        emailDao.getEmailByIdOnce(id)?.toDomain()
-
-    override suspend fun getAvailableEmailsForTool(toolId: Long): List<Email> =
-        emailDao.getAvailableEmailsForTool(toolId).map { it.toDomain() }
+    override suspend fun getNextAvailable(tool: ToolType): Email? =
+        dao.getNextAvailable(tool.name)?.toDomain()
 }

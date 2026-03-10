@@ -12,55 +12,48 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.ae.emailrotator.MainActivity
-import com.ae.emailrotator.R
 
 object NotificationHelper {
-
-    private const val CHANNEL_ID = "email_rotator_channel"
-    private const val CHANNEL_NAME = "Email Availability"
+    private const val CHANNEL_ID = "email_available"
 
     fun createChannel(context: Context) {
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_DEFAULT
+            CHANNEL_ID, "Email Available",
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notifications when emails become available again"
+            description = "Notifies when a limited email becomes available"
         }
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        context.getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
     }
 
-    fun showEmailAvailableNotification(
-        context: Context,
-        emailAddress: String,
-        notificationId: Int
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) return
-        }
+    fun notify(context: Context, email: String, tool: String, id: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
+        val pending = PendingIntent.getActivity(
+            context, id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
-            .setContentTitle("Email Available")
-            .setContentText("$emailAddress is now available for use")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
+            .setContentTitle("✅ Email Available")
+            .setContentText("$email is now available for $tool")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("$email is now available for $tool. Tap to open and start using it."))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify(id, notification)
+        }
     }
 }

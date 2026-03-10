@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ae.emailrotator.domain.repository.SettingsRepository
 import com.ae.emailrotator.presentation.navigation.MainNavGraph
@@ -15,14 +16,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.compose.runtime.getValue
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
 
-    private val notificationPermissionLauncher = registerForActivityResult(
+    private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {}
 
@@ -30,19 +30,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
         setContent {
-            val isDarkMode by settingsRepository.isDarkMode()
+            val isDark by settingsRepository.isDarkMode()
                 .collectAsStateWithLifecycle(initialValue = false)
 
-            EmailRotatorTheme(darkTheme = isDarkMode) {
+            EmailRotatorTheme(darkTheme = isDark) {
                 MainNavGraph(
-                    isDarkMode = isDarkMode,
+                    isDarkMode = isDark,
                     onToggleDarkMode = {
                         CoroutineScope(Dispatchers.IO).launch {
-                            settingsRepository.setDarkMode(!isDarkMode)
+                            settingsRepository.setDarkMode(!isDark)
                         }
                     }
                 )

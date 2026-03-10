@@ -1,0 +1,11 @@
+package com.ae.emailrotator.domain.usecase
+
+import com.ae.emailrotator.domain.repository.EmailRepository
+import javax.inject.Inject
+
+class DeleteEmailUseCase @Inject constructor(
+    private val repository: EmailRepository
+) {
+    suspend operator fun invoke(id: Long) =
+        repository.deleteEmail(id)
+}

@@ -7,24 +7,42 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface EmailDao {
 
-    @Query("SELECT * FROM emails ORDER BY email ASC")
+    @Query("""
+        SELECT * FROM emails
+        ORDER BY
+            CASE status WHEN 'AVAILABLE' THEN 0 ELSE 1 END,
+            available_at ASC,
+            created_at ASC
+    """)
     fun getAllEmails(): Flow<List<EmailEntity>>
 
-    @Query("SELECT * FROM emails WHERE id = :id")
-    fun getEmailById(id: Long): Flow<EmailEntity?>
-
-    @Query("SELECT * FROM emails WHERE id = :id")
-    suspend fun getEmailByIdOnce(id: Long): EmailEntity?
-
-    @Query("SELECT * FROM emails WHERE email LIKE '%' || :query || '%' ORDER BY email ASC")
-    fun searchEmails(query: String): Flow<List<EmailEntity>>
+    @Query("""
+        SELECT * FROM emails WHERE tool = :tool
+        ORDER BY
+            CASE status WHEN 'AVAILABLE' THEN 0 ELSE 1 END,
+            available_at ASC,
+            created_at ASC
+    """)
+    fun getEmailsByTool(tool: String): Flow<List<EmailEntity>>
 
     @Query("""
-        SELECT e.* FROM emails e
-        INNER JOIN tool_email_cross_ref te ON e.id = te.email_id
-        WHERE te.tool_id = :toolId ORDER BY te.order_index ASC
+        SELECT * FROM emails
+        WHERE tool = :tool AND status = 'AVAILABLE'
+        ORDER BY created_at ASC
     """)
-    fun getEmailsByToolId(toolId: Long): Flow<List<EmailEntity>>
+    fun getAvailableByTool(tool: String): Flow<List<EmailEntity>>
+
+    @Query("""
+        SELECT * FROM emails
+        WHERE email LIKE '%' || :query || '%'
+        ORDER BY
+            CASE status WHEN 'AVAILABLE' THEN 0 ELSE 1 END,
+            available_at ASC
+    """)
+    fun searchEmails(query: String): Flow<List<EmailEntity>>
+
+    @Query("SELECT * FROM emails WHERE id = :id")
+    suspend fun getById(id: Long): EmailEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(email: EmailEntity): Long
@@ -35,18 +53,26 @@ interface EmailDao {
     @Query("DELETE FROM emails WHERE id = :id")
     suspend fun delete(id: Long)
 
-    @Query("UPDATE emails SET status = :status, available_at = :availableAt WHERE id = :id")
-    suspend fun updateStatus(id: Long, status: String, availableAt: Long?)
-
-    @Query("UPDATE emails SET status = 'AVAILABLE', available_at = NULL WHERE status = 'LIMITED' AND available_at IS NOT NULL AND available_at <= :now")
-    suspend fun markAvailableWhereTimeReached(now: Long)
-
-    @Query("SELECT id FROM emails WHERE status = 'LIMITED' AND available_at IS NOT NULL AND available_at <= :now")
-    suspend fun getEmailIdsToRefresh(now: Long): List<Long>
+    @Query("UPDATE emails SET status = 'LIMITED', available_at = :availableAt WHERE id = :id")
+    suspend fun limitEmail(id: Long, availableAt: Long)
 
     @Query("""
-        SELECT e.* FROM emails e INNER JOIN tool_email_cross_ref te ON e.id = te.email_id
-        WHERE te.tool_id = :toolId AND e.status = 'AVAILABLE' ORDER BY te.order_index ASC
+        SELECT * FROM emails
+        WHERE status = 'LIMITED' AND available_at IS NOT NULL AND available_at <= :now
     """)
-    suspend fun getAvailableEmailsForTool(toolId: Long): List<EmailEntity>
+    suspend fun getExpiredLimited(now: Long): List<EmailEntity>
+
+    @Query("""
+        UPDATE emails SET status = 'AVAILABLE', available_at = NULL
+        WHERE status = 'LIMITED' AND available_at IS NOT NULL AND available_at <= :now
+    """)
+    suspend fun markAvailableWhereExpired(now: Long)
+
+    @Query("""
+        SELECT * FROM emails
+        WHERE tool = :tool AND status = 'AVAILABLE'
+        ORDER BY created_at ASC
+        LIMIT 1
+    """)
+    suspend fun getNextAvailable(tool: String): EmailEntity?
 }
