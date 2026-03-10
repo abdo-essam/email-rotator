@@ -6,6 +6,6 @@ import javax.inject.Inject
 class LimitEmailUseCase @Inject constructor(
     private val repository: EmailRepository
 ) {
-    suspend operator fun invoke(emailId: Long, availableAt: Long) =
-        repository.limitEmail(emailId, availableAt)
+    suspend operator fun invoke(emailId: Long, toolId: Long, availableAt: Long) =
+        repository.limitEmail(emailId, toolId, availableAt)
 }

@@ -39,9 +39,9 @@ class VerificationViewModel @Inject constructor(
         }
     }
 
-    fun verifyEmail(id: Long) {
+    fun verifyEmail(emailId: Long, toolId: Long) {
         viewModelScope.launch {
-            verifyEmailUseCase(id)
+            verifyEmailUseCase(emailId, toolId)
             _state.update { it.copy(snackbar = "Email verified successfully.") }
         }
     }

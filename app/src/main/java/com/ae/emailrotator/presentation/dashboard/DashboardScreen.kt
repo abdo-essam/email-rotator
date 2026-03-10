@@ -1,6 +1,7 @@
 package com.ae.emailrotator.presentation.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,9 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,8 +32,6 @@ import com.ae.emailrotator.presentation.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    isDarkMode: Boolean,
-    onToggleDarkMode: () -> Unit,
     onNavigateToVerification: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -49,7 +48,9 @@ fun DashboardScreen(
     state.limitEmail?.let { email ->
         LimitBottomSheet(
             emailAddress = email.address,
-            onConfirm = { viewModel.limitEmail(email.id, it) },
+            onConfirm = { availableAt ->
+                viewModel.limitEmail(email.id, email.toolId, availableAt)
+            },
             onDismiss = { viewModel.dismissLimit() }
         )
     }
@@ -57,22 +58,32 @@ fun DashboardScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
-            DashboardTopBar(
-                isDarkMode = isDarkMode,
-                onToggleDarkMode = onToggleDarkMode
-            )
+            DashboardTopBar()
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingIndicator(modifier = Modifier.padding(padding))
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 32.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                // ── Stats Overview ──────────────────────────────────────
                 item(key = "stats_section") {
                     StatsSection(
                         stats = state.stats,
@@ -80,12 +91,7 @@ fun DashboardScreen(
                     )
                 }
 
-                item(key = "tools_divider") {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-                    )
-                }
-
+                // ── Per-tool sections ───────────────────────────────────
                 items(
                     items = state.toolStates,
                     key = { "tool_section_${it.tool.id}" }
@@ -94,26 +100,17 @@ fun DashboardScreen(
                         toolState = toolState,
                         onLimitClick = { viewModel.showLimit(toolState.current!!) }
                     )
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f)
-                    )
-                }
-
-                item(key = "bottom_space") {
-                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
     }
 }
 
+// ─── Top Bar ───────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DashboardTopBar(
-    isDarkMode: Boolean,
-    onToggleDarkMode: () -> Unit
-) {
+private fun DashboardTopBar() {
     TopAppBar(
         title = {
             Column {
@@ -129,172 +126,89 @@ private fun DashboardTopBar(
                 )
             }
         },
-        actions = {
-            IconButton(onClick = onToggleDarkMode) {
-                Icon(
-                    imageVector = if (isDarkMode) Icons.Outlined.LightMode
-                    else Icons.Outlined.DarkMode,
-                    contentDescription = stringResource(R.string.common_toggle_theme)
-                )
-            }
-        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
 
+// ─── Stats Section ─────────────────────────────────────────────────────────
+
 @Composable
 private fun StatsSection(
     stats: DashboardStats,
     onVerificationClick: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "Overview",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
+
+        // Row 1 – Total / Active
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.stat_total_emails),
                 value = stats.totalEmails.toString(),
                 icon = Icons.Outlined.Email,
-                color = Blue500
+                tintColor = Blue500
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.stat_active_emails),
                 value = stats.activeEmails.toString(),
                 icon = Icons.Outlined.CheckCircle,
-                color = Green500
+                tintColor = Green500
             )
         }
+
+        // Row 2 – Limited / Needs Verification
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.stat_limited_emails),
                 value = stats.limitedEmails.toString(),
                 icon = Icons.Outlined.Block,
-                color = Red500
+                tintColor = Red500
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.stat_needs_verification),
                 value = stats.needsVerificationEmails.toString(),
                 icon = Icons.Outlined.HelpOutline,
-                color = Amber500,
+                tintColor = Amber500,
                 onClick = if (stats.needsVerificationEmails > 0) onVerificationClick else null
             )
         }
+
+        // Tool Usage
         if (stats.toolStats.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.stat_tool_usage),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 4.dp)
+                fontWeight = FontWeight.SemiBold
             )
             stats.toolStats.forEach { toolStat ->
-                ToolStatRow(
+                ToolUsageCard(
                     toolName = toolStat.toolName,
-                    total = toolStat.totalEmails,
-                    active = toolStat.activeEmails
+                    totalEmails = toolStat.totalEmails,
+                    activeEmails = toolStat.activeEmails
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    icon: ImageVector,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: (() -> Unit)? = null
-) {
-    Card(
-        onClick = onClick ?: {},
-        modifier = modifier,
-        enabled = onClick != null,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun ToolStatRow(
-    toolName: String,
-    total: Int,
-    active: Int
-) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = toolName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.stat_emails_count, total),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Green500.copy(alpha = 0.15f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "$active active",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Green500,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
+// ─── Tool Section ──────────────────────────────────────────────────────────
 
 @Composable
 private fun ToolSection(
@@ -314,18 +228,15 @@ private fun ToolSection(
         )
 
         if (toolState.current != null) {
-            LimitCurrentButton(
-                email = toolState.current,
-                onLimitClick = onLimitClick
-            )
+            LimitCurrentButton(onLimitClick = onLimitClick)
         }
 
         if (toolState.queue.size > 1) {
             Text(
                 text = stringResource(R.string.dashboard_queue_label),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                modifier = Modifier.padding(start = 2.dp)
             )
             toolState.queue.drop(1).forEach { email ->
                 QueueEmailItem(email = email)
@@ -334,52 +245,60 @@ private fun ToolSection(
     }
 }
 
+// ─── Tool Section Header ───────────────────────────────────────────────────
+
 @Composable
 private fun ToolSectionHeader(toolName: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 4.dp)
+        modifier = Modifier.padding(vertical = 2.dp)
     ) {
         GradientBox(
             gradient = Brush.linearGradient(listOf(Blue500, Purple500)),
-            size = 36.dp,
+            size = 34.dp,
             cornerRadius = 10.dp
         ) {
             Icon(
                 Icons.Default.Build,
                 null,
                 tint = Color.White,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
             text = toolName,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
     }
 }
 
+// ─── Limit Current Button ──────────────────────────────────────────────────
+
 @Composable
-private fun LimitCurrentButton(
-    email: Email,
-    onLimitClick: () -> Unit
-) {
-    Button(
+private fun LimitCurrentButton(onLimitClick: () -> Unit) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+    OutlinedButton(
         onClick = onLimitClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Amber500.copy(alpha = 0.15f),
-            contentColor = Amber500
+            .height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = if (isDark) Amber400 else Amber600
         ),
-        elevation = ButtonDefaults.buttonElevation(0.dp)
+        border = ButtonDefaults.outlinedButtonBorder.copy(
+            brush = Brush.linearGradient(
+                listOf(
+                    if (isDark) Amber400 else Amber500,
+                    if (isDark) Amber400 else Amber500
+                )
+            )
+        )
     ) {
-        Icon(Icons.Outlined.Block, null, Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Outlined.Block, null, Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.dashboard_limit_current),
             style = MaterialTheme.typography.labelLarge,
@@ -388,45 +307,36 @@ private fun LimitCurrentButton(
     }
 }
 
-@Composable
-private fun QueueEmailItem(email: Email) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StatusDot(email.status)
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = email.address,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.dashboard_ready),
-                style = MaterialTheme.typography.labelSmall,
-                color = Green500,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
+// ─── Queue Email Item ──────────────────────────────────────────────────────
 
 @Composable
-private fun LoadingIndicator(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+private fun QueueEmailItem(email: Email) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (isDark) Slate800 else Slate50)
+            .border(1.dp, if (isDark) Slate700 else Slate200, shape)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        CircularProgressIndicator()
+        StatusDot(email.status)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = email.address,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = stringResource(R.string.dashboard_ready),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isDark) Green400 else Green600,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }

@@ -1,6 +1,7 @@
 package com.ae.emailrotator.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -23,6 +25,8 @@ import com.ae.emailrotator.domain.model.EmailStatus
 import com.ae.emailrotator.presentation.theme.*
 import com.ae.emailrotator.util.DateTimeUtil
 
+// ─── Current Email Card ────────────────────────────────────────────────────
+
 @Composable
 fun CurrentEmailCard(
     email: Email?,
@@ -30,33 +34,52 @@ fun CurrentEmailCard(
     queueSize: Int,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(modifier = modifier.fillMaxWidth()) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+    val shape = RoundedCornerShape(16.dp)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = if (isDark) 0.dp else 2.dp,
+                shape = shape,
+                ambientColor = Color.Black.copy(alpha = 0.05f)
+            )
+            .clip(shape)
+            .background(if (isDark) Slate800 else Color.White)
+            .border(1.dp, if (isDark) Slate700 else Slate200, shape)
+            .padding(16.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val isAvailable = email != null
             GradientBox(
                 gradient = Brush.linearGradient(
-                    if (email != null) listOf(Green500, Teal500) else listOf(Red500, Amber500)
+                    if (isAvailable) listOf(Green500, Teal500)
+                    else listOf(Red400, Red500)
                 ),
-                size = 48.dp
+                size = 46.dp,
+                cornerRadius = 13.dp
             ) {
                 Icon(
-                    imageVector = if (email != null) Icons.Filled.MarkEmailRead
+                    imageVector = if (isAvailable) Icons.Filled.MarkEmailRead
                     else Icons.Filled.MarkEmailUnread,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     text = toolName,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(2.dp))
                 if (email != null) {
                     Text(
                         text = email.address,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -64,12 +87,13 @@ fun CurrentEmailCard(
                 } else {
                     Text(
                         text = stringResource(R.string.dashboard_no_email),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Red500
+                        color = if (isDark) Red400 else Red500
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 StatusChip(email?.status ?: EmailStatus.LIMITED)
                 Spacer(Modifier.height(4.dp))
@@ -83,6 +107,8 @@ fun CurrentEmailCard(
     }
 }
 
+// ─── Email List Card ───────────────────────────────────────────────────────
+
 @Composable
 fun EmailListCard(
     email: Email,
@@ -92,32 +118,27 @@ fun EmailListCard(
     onVerifyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(modifier = modifier.fillMaxWidth()) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+    val shape = RoundedCornerShape(16.dp)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = if (isDark) 0.dp else 2.dp,
+                shape = shape,
+                ambientColor = Color.Black.copy(alpha = 0.05f)
+            )
+            .clip(shape)
+            .background(if (isDark) Slate800 else Color.White)
+            .border(1.dp, if (isDark) Slate700 else Slate200, shape)
+            .padding(16.dp)
+    ) {
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GradientBox(
-                gradient = Brush.linearGradient(
-                    when (email.status) {
-                        EmailStatus.AVAILABLE -> listOf(Green500, Teal500)
-                        EmailStatus.LIMITED -> listOf(Red500, Amber500)
-                        EmailStatus.NEEDS_VERIFICATION -> listOf(Amber500, Amber600)
-                    }
-                ),
-                size = 40.dp
-            ) {
-                Icon(
-                    imageVector = when (email.status) {
-                        EmailStatus.AVAILABLE -> Icons.Filled.MarkEmailRead
-                        EmailStatus.LIMITED -> Icons.Filled.MarkEmailUnread
-                        EmailStatus.NEEDS_VERIFICATION -> Icons.Filled.HelpOutline
-                    },
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            EmailStatusIcon(status = email.status)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -127,80 +148,101 @@ fun EmailListCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(Modifier.height(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    ToolBadge(toolName = email.toolName)
-                    if (email.status == EmailStatus.LIMITED && email.availableAt != null) {
+                    ToolNameBadge(toolName = email.toolName)
+                    if (email.isLimited && email.availableAt != null) {
                         CountdownBadge(availableAt = email.availableAt)
                     }
                 }
             }
+            Spacer(Modifier.width(8.dp))
             StatusChip(email.status)
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
+
+        HorizontalDivider(
+            color = if (isDark) Slate700 else Slate200,
+            thickness = 0.5.dp
+        )
 
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            if (email.status == EmailStatus.NEEDS_VERIFICATION) {
-                TextButton(
-                    onClick = onVerifyClick,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Green500),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Outlined.CheckCircle, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.action_verify))
-                }
+            if (email.needsVerification) {
+                EmailActionButton(
+                    label = stringResource(R.string.action_verify),
+                    icon = Icons.Outlined.CheckCircle,
+                    color = if (isDark) Green400 else Green600,
+                    onClick = onVerifyClick
+                )
             }
-            if (email.status == EmailStatus.AVAILABLE) {
-                TextButton(
-                    onClick = onLimitClick,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Amber500),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Outlined.Block, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.action_limit))
-                }
+            if (email.isUsable) {
+                EmailActionButton(
+                    label = stringResource(R.string.action_limit),
+                    icon = Icons.Outlined.Block,
+                    color = if (isDark) Amber400 else Amber600,
+                    onClick = onLimitClick
+                )
             }
-            TextButton(
-                onClick = onEditClick,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Icon(Icons.Outlined.Edit, null, Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(R.string.action_edit))
-            }
-            TextButton(
-                onClick = onDeleteClick,
-                colors = ButtonDefaults.textButtonColors(contentColor = Red500),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Icon(Icons.Outlined.Delete, null, Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(R.string.action_delete))
-            }
+            EmailActionButton(
+                label = stringResource(R.string.action_edit),
+                icon = Icons.Outlined.Edit,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = onEditClick
+            )
+            EmailActionButton(
+                label = stringResource(R.string.action_delete),
+                icon = Icons.Outlined.Delete,
+                color = if (isDark) Red400 else Red500,
+                onClick = onDeleteClick
+            )
         }
     }
 }
 
+// ─── Private helpers ───────────────────────────────────────────────────────
+
 @Composable
-private fun ToolBadge(toolName: String) {
+private fun EmailStatusIcon(status: EmailStatus) {
+    val gradient = when (status) {
+        EmailStatus.AVAILABLE -> Brush.linearGradient(listOf(Green500, Teal500))
+        EmailStatus.LIMITED -> Brush.linearGradient(listOf(Red400, Red500))
+        EmailStatus.NEEDS_VERIFICATION -> Brush.linearGradient(listOf(Amber400, Amber500))
+    }
+    val icon = when (status) {
+        EmailStatus.AVAILABLE -> Icons.Filled.MarkEmailRead
+        EmailStatus.LIMITED -> Icons.Filled.MarkEmailUnread
+        EmailStatus.NEEDS_VERIFICATION -> Icons.Filled.HelpOutline
+    }
+    GradientBox(gradient = gradient, size = 38.dp, cornerRadius = 11.dp) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun ToolNameBadge(toolName: String) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
     Box(
         Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .background(if (isDark) Blue500.copy(alpha = 0.18f) else Blue50)
+            .border(
+                1.dp,
+                if (isDark) Blue400.copy(alpha = 0.25f) else Blue100,
+                RoundedCornerShape(6.dp)
+            )
+            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
             text = toolName.ifBlank { "—" },
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
+            color = if (isDark) Blue400 else Blue600,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -208,14 +250,44 @@ private fun ToolBadge(toolName: String) {
 
 @Composable
 private fun CountdownBadge(availableAt: Long) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Outlined.Timer, null, Modifier.size(12.dp), tint = Amber500)
-        Spacer(Modifier.width(3.dp))
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Icon(
+            Icons.Outlined.Timer,
+            null,
+            Modifier.size(12.dp),
+            tint = if (isDark) Amber400 else Amber600
+        )
         Text(
             text = DateTimeUtil.formatCountdown(availableAt),
             style = MaterialTheme.typography.labelSmall,
-            color = Amber500,
+            color = if (isDark) Amber400 else Amber600,
             fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun EmailActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    onClick: () -> Unit
+) {
+    TextButton(
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(contentColor = color),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Icon(icon, null, Modifier.size(15.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

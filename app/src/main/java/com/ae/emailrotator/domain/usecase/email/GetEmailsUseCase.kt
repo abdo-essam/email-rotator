@@ -9,9 +9,9 @@ import javax.inject.Inject
 class GetEmailsUseCase @Inject constructor(
     private val repository: EmailRepository
 ) {
-    operator fun invoke(): Flow<List<Email>> = repository.getAllEmails()
-    fun byTool(toolId: Long): Flow<List<Email>> = repository.getEmailsByTool(toolId)
-    fun usable(toolId: Long): Flow<List<Email>> = repository.getUsableByTool(toolId)
+    operator fun invoke(): Flow<List<Email>> = repository.getAllEmailStatuses()
+    fun byTool(toolId: Long): Flow<List<Email>> = repository.getEmailsForTool(toolId)
+    fun usable(toolId: Long): Flow<List<Email>> = repository.getUsableEmailsForTool(toolId)
     fun byStatus(status: EmailStatus): Flow<List<Email>> = repository.getEmailsByStatus(status)
     fun search(query: String): Flow<List<Email>> = repository.searchEmails(query)
 }

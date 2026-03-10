@@ -1,60 +1,98 @@
 package com.ae.emailrotator.data.repository
 
-import com.ae.emailrotator.data.local.dao.EmailDao
-import com.ae.emailrotator.data.local.entity.toEntity
+import com.ae.emailrotator.data.local.dao.GlobalEmailDao
+import com.ae.emailrotator.data.local.dao.ToolDao
+import com.ae.emailrotator.data.local.dao.ToolEmailStatusDao
+import com.ae.emailrotator.data.local.entity.GlobalEmailEntity
+import com.ae.emailrotator.data.local.entity.ToolEmailStatusEntity
+import com.ae.emailrotator.data.mapper.toDomain
 import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.domain.model.EmailStatus
 import com.ae.emailrotator.domain.repository.EmailRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class EmailRepositoryImpl @Inject constructor(
-    private val dao: EmailDao
+    private val globalEmailDao: GlobalEmailDao,
+    private val toolEmailStatusDao: ToolEmailStatusDao,
+    private val toolDao: ToolDao
 ) : EmailRepository {
 
-    override fun getAllEmails(): Flow<List<Email>> =
-        dao.getAllEmails().map { list -> list.map { it.email.toDomain(it.toolName ?: "") } }
+    override fun getAllEmailStatuses(): Flow<List<Email>> =
+        toolEmailStatusDao.getAllEmailStatuses()
+            .map { list -> list.map { it.toDomain() } }
 
-    override fun getEmailsByTool(toolId: Long): Flow<List<Email>> =
-        dao.getEmailsByTool(toolId).map { list -> list.map { it.email.toDomain(it.toolName ?: "") } }
+    override fun getEmailsForTool(toolId: Long): Flow<List<Email>> =
+        toolEmailStatusDao.getEmailsForTool(toolId)
+            .map { list -> list.map { it.toDomain() } }
 
-    override fun getUsableByTool(toolId: Long): Flow<List<Email>> =
-        dao.getUsableByTool(toolId).map { list -> list.map { it.email.toDomain(it.toolName ?: "") } }
+    override fun getUsableEmailsForTool(toolId: Long): Flow<List<Email>> =
+        toolEmailStatusDao.getUsableEmailsForTool(toolId)
+            .map { list -> list.map { it.toDomain() } }
 
     override fun getEmailsByStatus(status: EmailStatus): Flow<List<Email>> =
-        dao.getEmailsByStatus(status).map { list -> list.map { it.email.toDomain(it.toolName ?: "") } }
+        toolEmailStatusDao.getEmailsByStatus(status.name)
+            .map { list -> list.map { it.toDomain() } }
 
     override fun searchEmails(query: String): Flow<List<Email>> =
-        dao.searchEmails(query).map { list -> list.map { it.email.toDomain(it.toolName ?: "") } }
+        toolEmailStatusDao.searchEmails(query)
+            .map { list -> list.map { it.toDomain() } }
 
-    override suspend fun getEmailById(id: Long): Email? =
-        dao.getById(id)?.toDomain()
+    override suspend fun addEmailToAllTools(
+        address: String,
+        initialStatus: EmailStatus
+    ): Long {
+        val emailId = globalEmailDao.insert(
+            GlobalEmailEntity(address = address)
+        )
+        val tools = toolDao.getAllToolsSnapshot()
+        val statuses = tools.map { tool ->
+            ToolEmailStatusEntity(
+                emailId = emailId,
+                toolId = tool.id,
+                status = initialStatus.name
+            )
+        }
+        toolEmailStatusDao.insertAll(statuses)
+        return emailId
+    }
 
-    override suspend fun insertEmail(email: Email): Long =
-        dao.insert(email.toEntity())
+    override suspend fun updateEmailAddress(emailId: Long, newAddress: String) {
+        val existing = globalEmailDao.getById(emailId) ?: return
+        globalEmailDao.update(existing.copy(address = newAddress))
+    }
 
-    override suspend fun updateEmail(email: Email) =
-        dao.update(email.toEntity())
+    override suspend fun deleteEmail(emailId: Long) {
+        globalEmailDao.delete(emailId)
+        // Cascade deletes tool_email_status rows automatically via FK
+    }
 
-    override suspend fun deleteEmail(id: Long) =
-        dao.delete(id)
+    override suspend fun limitEmail(emailId: Long, toolId: Long, availableAt: Long) =
+        toolEmailStatusDao.limitEmail(emailId, toolId, availableAt)
 
-    override suspend fun limitEmail(id: Long, availableAt: Long) =
-        dao.limitEmail(id, availableAt)
-
-    override suspend fun verifyEmail(id: Long) =
-        dao.verifyEmail(id)
+    override suspend fun verifyEmail(emailId: Long, toolId: Long) =
+        toolEmailStatusDao.verifyEmail(emailId, toolId)
 
     override suspend fun refreshAvailability(): List<Email> {
         val now = System.currentTimeMillis()
-        val expired = dao.getExpiredLimited(now).map { it.toDomain() }
-        dao.markAvailableWhereExpired(now)
+        val expired = toolEmailStatusDao.getExpiredLimited(now).map { it.toDomain() }
+        toolEmailStatusDao.markAvailableWhereExpired(now)
         return expired
     }
 
     override suspend fun getNextUsable(toolId: Long): Email? =
-        dao.getNextUsable(toolId)?.toDomain()
+        toolEmailStatusDao.getNextUsable(toolId)?.toDomain()
+
+    override suspend fun syncNewToolWithExistingEmails(toolId: Long) {
+        val allEmails = globalEmailDao.getAllEmailsSnapshot()
+        val statuses = allEmails.map { email ->
+            ToolEmailStatusEntity(
+                emailId = email.id,
+                toolId = toolId,
+                status = EmailStatus.AVAILABLE.name
+            )
+        }
+        toolEmailStatusDao.insertAll(statuses)
+    }
 }

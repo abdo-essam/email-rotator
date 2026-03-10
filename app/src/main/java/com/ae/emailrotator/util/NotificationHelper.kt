@@ -39,7 +39,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.app_logo)
             .setContentTitle("Email Available")
             .setContentText("$address is now available for $toolName")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

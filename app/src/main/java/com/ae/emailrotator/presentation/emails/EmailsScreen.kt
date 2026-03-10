@@ -31,11 +31,6 @@ fun EmailsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHost = remember { SnackbarHostState() }
 
-    var showAddSheet by remember { mutableStateOf(false) }
-    var emailToEdit by remember { mutableStateOf<Email?>(null) }
-    var emailToLimit by remember { mutableStateOf<Email?>(null) }
-    var emailToDelete by remember { mutableStateOf<Email?>(null) }
-
     LaunchedEffect(state.snackbar) {
         state.snackbar?.let {
             snackbarHost.showSnackbar(it)
@@ -43,41 +38,34 @@ fun EmailsScreen(
         }
     }
 
-    if (showAddSheet || emailToEdit != null) {
+    if (state.showAddSheet) {
         AddEditEmailSheet(
-            email = emailToEdit,
-            tools = state.tools,
-            onSave = { address, toolId ->
-                viewModel.saveEmail(address, toolId, emailToEdit?.id ?: 0L)
-                showAddSheet = false
-                emailToEdit = null
+            editingEmail = state.editingEmail,
+            onSave = { address, needsVerification ->
+                viewModel.saveEmail(address, needsVerification)
             },
-            onDismiss = {
-                showAddSheet = false
-                emailToEdit = null
-            }
+            onDismiss = { viewModel.dismissSheet() }
         )
     }
 
-    emailToLimit?.let { email ->
+    state.limitEmail?.let { email ->
         LimitBottomSheet(
             emailAddress = email.address,
-            onConfirm = {
-                viewModel.limitEmail(email.id, it)
-                emailToLimit = null
+            defaultLimitDays = state.defaultLimitDays,
+            onConfirm = { availableAt ->
+                viewModel.limitEmail(email.id, email.toolId, availableAt)
             },
-            onDismiss = { emailToLimit = null }
+            onDismiss = { viewModel.dismissLimit() }
         )
     }
 
-    if (emailToDelete != null) {
+    state.deleteEmail?.let { email ->
         DeleteConfirmDialog(
-            emailAddress = emailToDelete!!.address,
+            emailAddress = email.address,
             onConfirm = {
-                viewModel.deleteEmail(emailToDelete!!.id)
-                emailToDelete = null
+                viewModel.deleteEmail(email.id)
             },
-            onDismiss = { emailToDelete = null }
+            onDismiss = { viewModel.dismissDelete() }
         )
     }
 
@@ -106,7 +94,7 @@ fun EmailsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showAddSheet = true },
+                onClick = { viewModel.showAdd() },
                 containerColor = Blue500,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(56.dp)
@@ -122,18 +110,18 @@ fun EmailsScreen(
         ) {
             SearchBar(
                 query = state.searchQuery,
-                onQueryChange = viewModel::onSearchChange
+                onQueryChange = viewModel::setSearch
             )
 
             ToolFilterRow(
                 tools = state.tools,
-                selectedToolId = state.filterToolId,
-                onToolSelect = viewModel::onFilterToolChange
+                selectedToolId = state.toolFilter,
+                onToolSelect = viewModel::setToolFilter
             )
 
             if (state.emails.isEmpty() && !state.isLoading) {
                 EmptyState(
-                    isSearch = state.searchQuery.isNotEmpty() || state.filterToolId != null
+                    isSearch = state.searchQuery.isNotEmpty() || state.toolFilter != null
                 )
             } else {
                 LazyColumn(
@@ -141,13 +129,13 @@ fun EmailsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(items = state.emails, key = { it.id }) { email ->
+                    items(items = state.emails, key = { it.id.toString() + it.toolId }) { email ->
                         EmailListCard(
                             email = email,
-                            onLimitClick = { emailToLimit = email },
-                            onEditClick = { emailToEdit = email },
-                            onDeleteClick = { emailToDelete = email },
-                            onVerifyClick = { viewModel.verifyEmail(email.id) }
+                            onLimitClick = { viewModel.showLimit(email) },
+                            onEditClick = { viewModel.showEdit(email) },
+                            onDeleteClick = { viewModel.showDelete(email) },
+                            onVerifyClick = { viewModel.verifyEmail(email.id, email.toolId) }
                         )
                     }
                 }

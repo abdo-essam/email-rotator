@@ -74,16 +74,17 @@ fun VerificationScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item {
+                item(key = "verification_info") {
                     VerificationInfoCard()
+                    Spacer(Modifier.height(8.dp))
                 }
-                items(items = state.emails, key = { it.id }) { email ->
+                items(items = state.emails, key = { it.id.toString() + it.toolId }) { email ->
                     EmailListCard(
                         email = email,
-                        onLimitClick = { /* Not applicable */ },
-                        onEditClick = { /* Maybe? */ },
-                        onDeleteClick = { /* Handle delete if needed */ },
-                        onVerifyClick = { viewModel.verifyEmail(email.id) }
+                        onLimitClick = { },
+                        onEditClick = { },
+                        onDeleteClick = { },
+                        onVerifyClick = { viewModel.verifyEmail(email.id, email.toolId) }
                     )
                 }
             }

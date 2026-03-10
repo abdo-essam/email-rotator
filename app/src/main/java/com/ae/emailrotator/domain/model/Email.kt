@@ -9,12 +9,7 @@ data class Email(
     val availableAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
-    val isUsable: Boolean
-        get() = status == EmailStatus.AVAILABLE
-
-    val isLimited: Boolean
-        get() = status == EmailStatus.LIMITED
-
-    val needsVerification: Boolean
-        get() = status == EmailStatus.NEEDS_VERIFICATION
+    val isUsable: Boolean get() = status == EmailStatus.AVAILABLE
+    val isLimited: Boolean get() = status == EmailStatus.LIMITED
+    val needsVerification: Boolean get() = status == EmailStatus.NEEDS_VERIFICATION
 }

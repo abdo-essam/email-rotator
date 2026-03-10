@@ -11,6 +11,7 @@ import com.ae.emailrotator.domain.usecase.email.GetEmailsUseCase
 import com.ae.emailrotator.domain.usecase.stats.GetDashboardStatsUseCase
 import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,6 +30,7 @@ data class DashboardState(
     val snackbar: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getEmails: GetEmailsUseCase,
@@ -50,20 +52,17 @@ class DashboardViewModel @Inject constructor(
     private fun observeToolsAndEmails() {
         viewModelScope.launch {
             getTools().flatMapLatest { tools ->
-                if (tools.isEmpty()) {
-                    flowOf(emptyList())
-                } else {
-                    val toolFlows = tools.map { tool ->
-                        getEmails.usable(tool.id).map { emails ->
-                            ToolEmailState(
-                                tool = tool,
-                                current = emails.firstOrNull(),
-                                queue = emails
-                            )
-                        }
+                if (tools.isEmpty()) return@flatMapLatest flowOf(emptyList())
+                val toolFlows = tools.map { tool ->
+                    getEmails.usable(tool.id).map { emails ->
+                        ToolEmailState(
+                            tool = tool,
+                            current = emails.firstOrNull(),
+                            queue = emails
+                        )
                     }
-                    combine(toolFlows) { it.toList() }
                 }
+                combine(toolFlows) { it.toList() }
             }.collect { toolStates ->
                 _state.update { it.copy(toolStates = toolStates, isLoading = false) }
             }
@@ -86,13 +85,13 @@ class DashboardViewModel @Inject constructor(
         _state.update { it.copy(limitEmail = null) }
     }
 
-    fun limitEmail(emailId: Long, availableAt: Long) {
+    fun limitEmail(emailId: Long, toolId: Long, availableAt: Long) {
         viewModelScope.launch {
-            limitEmailUseCase(emailId, availableAt)
+            limitEmailUseCase(emailId, toolId, availableAt)
             _state.update {
                 it.copy(
                     limitEmail = null,
-                    snackbar = "Email limited. Next in queue activated."
+                    snackbar = "Email limited for this tool. Next in queue activated."
                 )
             }
         }

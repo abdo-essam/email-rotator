@@ -6,6 +6,6 @@ import javax.inject.Inject
 class DeleteEmailUseCase @Inject constructor(
     private val repository: EmailRepository
 ) {
-    suspend operator fun invoke(id: Long) =
-        repository.deleteEmail(id)
+    suspend operator fun invoke(emailId: Long) =
+        repository.deleteEmail(emailId)
 }

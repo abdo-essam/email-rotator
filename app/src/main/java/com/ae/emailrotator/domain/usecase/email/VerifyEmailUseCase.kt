@@ -6,6 +6,6 @@ import javax.inject.Inject
 class VerifyEmailUseCase @Inject constructor(
     private val repository: EmailRepository
 ) {
-    suspend operator fun invoke(emailId: Long) =
-        repository.verifyEmail(emailId)
+    suspend operator fun invoke(emailId: Long, toolId: Long) =
+        repository.verifyEmail(emailId, toolId)
 }

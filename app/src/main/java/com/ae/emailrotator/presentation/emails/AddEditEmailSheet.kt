@@ -1,140 +1,112 @@
 package com.ae.emailrotator.presentation.emails
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ae.emailrotator.R
 import com.ae.emailrotator.domain.model.Email
-import com.ae.emailrotator.domain.model.Tool
+import com.ae.emailrotator.domain.model.EmailStatus
+import com.ae.emailrotator.presentation.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditEmailSheet(
-    email: Email?,
-    tools: List<Tool>,
-    onSave: (String, Long) -> Unit,
+    editingEmail: Email?,
+    onSave: (address: String, needsVerification: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var address by remember { mutableStateOf(email?.address ?: "") }
-    var selectedToolId by remember { mutableStateOf(email?.toolId ?: tools.firstOrNull()?.id ?: 0L) }
+    var address by remember(editingEmail) {
+        mutableStateOf(editingEmail?.address ?: "")
+    }
+    var needsVerification by remember(editingEmail) {
+        mutableStateOf(editingEmail?.status == EmailStatus.NEEDS_VERIFICATION)
+    }
     var addressError by remember { mutableStateOf<String?>(null) }
-    var expanded by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 12.dp)
+                    .size(40.dp, 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(24.dp)
         ) {
             Text(
-                text = stringResource(if (email == null) R.string.emails_add else R.string.emails_edit),
+                text = stringResource(
+                    if (editingEmail != null) R.string.emails_edit else R.string.emails_add
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.emails_add_subtitle),
+                text = if (editingEmail != null)
+                    "Update the email address"
+                else
+                    "Email will be added to all tools automatically",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(24.dp))
 
-            // Tool Selection
-            Text(
-                text = stringResource(R.string.sheet_tool_label),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val selectedToolName = tools.find { it.id == selectedToolId }?.name
-                    ?: stringResource(R.string.sheet_tool_select_label)
-
-                OutlinedTextField(
-                    value = selectedToolName,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    tools.forEach { tool ->
-                        DropdownMenuItem(
-                            text = { Text(tool.name) },
-                            onClick = {
-                                selectedToolId = tool.id
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // Email Address
-            Text(
-                text = stringResource(R.string.sheet_email_label),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
             OutlinedTextField(
                 value = address,
-                onValueChange = {
-                    address = it
-                    addressError = null
-                },
+                onValueChange = { address = it; addressError = null },
                 modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.sheet_email_label)) },
                 placeholder = { Text(stringResource(R.string.sheet_email_placeholder)) },
+                leadingIcon = { Icon(Icons.Default.Email, null) },
                 isError = addressError != null,
-                supportingText = { addressError?.let { Text(it) } },
+                supportingText = addressError?.let {
+                    { Text(it, color = MaterialTheme.colorScheme.error) }
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp)
             )
 
+            Spacer(Modifier.height(16.dp))
+
+            VerificationToggleRow(
+                checked = needsVerification,
+                onCheckedChange = { needsVerification = it }
+            )
+
             Spacer(Modifier.height(28.dp))
+
+            val requiredError = stringResource(R.string.sheet_email_required)
+            val invalidError = stringResource(R.string.sheet_email_invalid)
 
             Button(
                 onClick = {
                     val trimmed = address.trim()
-                    if (trimmed.isBlank()) {
-                        addressError = "Email is required"
-                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmed).matches()) {
-                        addressError = "Invalid email format"
-                    } else if (selectedToolId == 0L) {
-                        addressError = "Please select a tool"
-                    } else {
-                        onSave(trimmed, selectedToolId)
+                    when {
+                        trimmed.isBlank() ->
+                            addressError = requiredError
+                        !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmed).matches() ->
+                            addressError = invalidError
+                        else -> onSave(trimmed, needsVerification)
                     }
                 },
                 modifier = Modifier
@@ -145,10 +117,54 @@ fun AddEditEmailSheet(
                 Icon(Icons.Default.Check, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.common_save),
+                    text = stringResource(
+                        if (editingEmail != null) R.string.action_update_email
+                        else R.string.action_add_email
+                    ),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
+
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun VerificationToggleRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.HelpOutline,
+            contentDescription = null,
+            tint = Amber500,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.status_needs_verification),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "Email won't be used until verified",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Amber500,
+                checkedTrackColor = Amber500.copy(alpha = 0.3f)
+            )
+        )
     }
 }

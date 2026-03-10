@@ -1,15 +1,14 @@
 package com.ae.emailrotator.data.repository
 
 import com.ae.emailrotator.data.local.dao.ToolDao
-import com.ae.emailrotator.data.local.entity.toEntity
+import com.ae.emailrotator.data.mapper.toDomain
+import com.ae.emailrotator.data.mapper.toEntity
 import com.ae.emailrotator.domain.model.Tool
 import com.ae.emailrotator.domain.repository.ToolRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class ToolRepositoryImpl @Inject constructor(
     private val dao: ToolDao
 ) : ToolRepository {

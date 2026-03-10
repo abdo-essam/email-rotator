@@ -6,13 +6,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "tools",
-    indices = [Index(value = ["name"], unique = true)]
+    tableName = "global_emails",
+    indices = [Index(value = ["address"], unique = true)]
 )
-data class ToolEntity(
+data class GlobalEmailEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    val name: String,
+    val address: String,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

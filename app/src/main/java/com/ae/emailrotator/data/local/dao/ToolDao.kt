@@ -6,8 +6,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ToolDao {
-    @Query("SELECT * FROM tools ORDER BY created_at DESC")
+
+    @Query("SELECT * FROM tools ORDER BY created_at ASC")
     fun getAllTools(): Flow<List<ToolEntity>>
+
+    @Query("SELECT * FROM tools ORDER BY created_at ASC")
+    suspend fun getAllToolsSnapshot(): List<ToolEntity>
 
     @Query("SELECT * FROM tools WHERE id = :id")
     suspend fun getById(id: Long): ToolEntity?
@@ -15,7 +19,7 @@ interface ToolDao {
     @Query("SELECT * FROM tools WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): ToolEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(tool: ToolEntity): Long
 
     @Update

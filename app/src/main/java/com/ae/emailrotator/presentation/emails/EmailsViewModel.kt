@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.domain.model.Tool
+import com.ae.emailrotator.domain.repository.SettingsRepository
 import com.ae.emailrotator.domain.usecase.email.*
 import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -14,97 +16,136 @@ import javax.inject.Inject
 data class EmailsState(
     val emails: List<Email> = emptyList(),
     val tools: List<Tool> = emptyList(),
-    val isLoading: Boolean = true,
     val searchQuery: String = "",
-    val filterToolId: Long? = null,
-    val snackbar: String? = null
+    val toolFilter: Long? = null,
+    val isLoading: Boolean = true,
+    val showAddSheet: Boolean = false,
+    val editingEmail: Email? = null,
+    val limitEmail: Email? = null,
+    val deleteEmail: Email? = null,
+    val snackbar: String? = null,
+    val defaultLimitDays: Int = 7
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class EmailsViewModel @Inject constructor(
     private val getEmails: GetEmailsUseCase,
-    private val getTools: GetToolsUseCase,
     private val addEmail: AddEmailUseCase,
     private val updateEmail: UpdateEmailUseCase,
-    private val deleteEmail: DeleteEmailUseCase,
-    private val limitEmail: LimitEmailUseCase,
-    private val verifyEmail: VerifyEmailUseCase
+    private val deleteEmailUseCase: DeleteEmailUseCase,
+    private val limitEmailUseCase: LimitEmailUseCase,
+    private val verifyEmailUseCase: VerifyEmailUseCase,
+    private val refreshUseCase: RefreshAvailabilityUseCase,
+    private val getTools: GetToolsUseCase,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EmailsState())
     val state: StateFlow<EmailsState> = _state.asStateFlow()
 
-    init {
-        observeEmails()
-        observeTools()
-    }
+    private val searchQuery = MutableStateFlow("")
+    private val toolFilter = MutableStateFlow<Long?>(null)
 
-    private fun observeEmails() {
-        viewModelScope.launch {
-            combine(
-                _state.map { it.searchQuery }.distinctUntilChanged(),
-                _state.map { it.filterToolId }.distinctUntilChanged()
-            ) { query, toolId ->
-                if (query.isBlank() && toolId == null) {
-                    getEmails()
-                } else if (query.isNotBlank()) {
-                    getEmails.search(query)
-                } else {
-                    getEmails.byTool(toolId!!)
-                }
-            }.flatMapLatest { it }
-                .collect { list ->
-                    _state.update { it.copy(emails = list, isLoading = false) }
-                }
-        }
+    init {
+        viewModelScope.launch { refreshUseCase() }
+        observeTools()
+        observeEmails()
+        observeSettings()
     }
 
     private fun observeTools() {
         viewModelScope.launch {
-            getTools().collect { list ->
-                _state.update { it.copy(tools = list) }
+            getTools().collect { tools ->
+                _state.update { it.copy(tools = tools) }
             }
         }
     }
 
-    fun onSearchChange(query: String) {
+    private fun observeEmails() {
+        viewModelScope.launch {
+            combine(searchQuery, toolFilter) { q, t -> q to t }
+                .flatMapLatest { (query, toolId) ->
+                    when {
+                        query.isNotBlank() && toolId != null ->
+                            getEmails.search(query).map { list ->
+                                list.filter { it.toolId == toolId }
+                            }
+                        query.isNotBlank() -> getEmails.search(query)
+                        toolId != null -> getEmails.byTool(toolId)
+                        else -> getEmails()
+                    }
+                }
+                .collect { emails ->
+                    _state.update { it.copy(emails = emails, isLoading = false) }
+                }
+        }
+    }
+
+    private fun observeSettings() {
+        viewModelScope.launch {
+            settingsRepository.getDefaultLimitDays().collect { days ->
+                _state.update { it.copy(defaultLimitDays = days) }
+            }
+        }
+    }
+
+    fun setSearch(query: String) {
+        searchQuery.value = query
         _state.update { it.copy(searchQuery = query) }
     }
 
-    fun onFilterToolChange(toolId: Long?) {
-        _state.update { it.copy(filterToolId = toolId) }
+    fun setToolFilter(toolId: Long?) {
+        toolFilter.value = toolId
+        _state.update { it.copy(toolFilter = toolId) }
     }
 
-    fun saveEmail(address: String, toolId: Long, id: Long = 0L) {
+    fun showAdd() = _state.update { it.copy(showAddSheet = true, editingEmail = null) }
+    fun showEdit(email: Email) = _state.update { it.copy(showAddSheet = true, editingEmail = email) }
+    fun dismissSheet() = _state.update { it.copy(showAddSheet = false, editingEmail = null) }
+    fun showLimit(email: Email) = _state.update { it.copy(limitEmail = email) }
+    fun dismissLimit() = _state.update { it.copy(limitEmail = null) }
+    fun showDelete(email: Email) = _state.update { it.copy(deleteEmail = email) }
+    fun dismissDelete() = _state.update { it.copy(deleteEmail = null) }
+    fun clearSnackbar() = _state.update { it.copy(snackbar = null) }
+
+    fun saveEmail(address: String, needsVerification: Boolean) {
         viewModelScope.launch {
-            val email = Email(id = id, address = address, toolId = toolId)
-            if (id == 0L) addEmail(email) else updateEmail(email)
-            _state.update { it.copy(snackbar = if (id == 0L) "Email added." else "Email updated.") }
+            val editing = _state.value.editingEmail
+            runCatching {
+                if (editing != null) {
+                    updateEmail(editing.id, address)
+                    _state.update {
+                        it.copy(showAddSheet = false, editingEmail = null, snackbar = "Email updated.")
+                    }
+                } else {
+                    addEmail(address, needsVerification)
+                    _state.update { it.copy(showAddSheet = false, snackbar = "Email added to all tools.") }
+                }
+            }.onFailure { e ->
+                _state.update { it.copy(snackbar = "Error: ${e.message}") }
+            }
         }
     }
 
-    fun deleteEmail(id: Long) {
+    fun limitEmail(emailId: Long, toolId: Long, availableAt: Long) {
         viewModelScope.launch {
-            deleteEmail.invoke(id)
-            _state.update { it.copy(snackbar = "Email deleted.") }
+            limitEmailUseCase(emailId, toolId, availableAt)
+            _state.update { it.copy(limitEmail = null, snackbar = "Email limited for this tool.") }
         }
     }
 
-    fun limitEmail(id: Long, availableAt: Long) {
+    fun verifyEmail(emailId: Long, toolId: Long) {
         viewModelScope.launch {
-            limitEmail.invoke(id, availableAt)
-            _state.update { it.copy(snackbar = "Email limited.") }
+            verifyEmailUseCase(emailId, toolId)
+            _state.update { it.copy(snackbar = "Email verified successfully.") }
         }
     }
 
-    fun verifyEmail(id: Long) {
+    fun deleteEmail(emailId: Long) {
         viewModelScope.launch {
-            verifyEmail.invoke(id)
-            _state.update { it.copy(snackbar = "Email verified.") }
+            deleteEmailUseCase(emailId)
+            _state.update { it.copy(deleteEmail = null, snackbar = "Email deleted from all tools.") }
         }
-    }
-
-    fun clearSnackbar() {
-        _state.update { it.copy(snackbar = null) }
     }
 }

@@ -24,7 +24,6 @@ import com.ae.emailrotator.presentation.theme.*
 fun SettingsScreen(
     isDarkMode: Boolean,
     onToggleDarkMode: () -> Unit,
-    onNavigateToTools: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -70,8 +69,9 @@ fun SettingsScreen(
                 )
             }
             item(key = "dark_mode") {
+                val isDark = MaterialTheme.colorScheme.background == Slate950
                 SettingsToggleItem(
-                    icon = if (isDarkMode) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                    icon = if (isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
                     title = stringResource(R.string.settings_dark_mode),
                     description = stringResource(R.string.settings_dark_mode_desc),
                     checked = isDarkMode,
@@ -108,15 +108,6 @@ fun SettingsScreen(
                     description = stringResource(R.string.settings_default_limit_days_desc),
                     value = stringResource(R.string.settings_days_format, state.defaultLimitDays),
                     onClick = { showLimitDaysPicker = true }
-                )
-            }
-            item(key = "manage_tools") {
-                SettingsClickableItem(
-                    icon = Icons.Outlined.Build,
-                    title = "Manage Tools",
-                    description = "Add, edit or delete tools",
-                    value = "",
-                    onClick = onNavigateToTools
                 )
             }
 
