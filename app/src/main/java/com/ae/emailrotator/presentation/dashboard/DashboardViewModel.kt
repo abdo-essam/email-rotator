@@ -2,19 +2,28 @@ package com.ae.emailrotator.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ae.emailrotator.domain.model.DashboardStats
 import com.ae.emailrotator.domain.model.Email
-import com.ae.emailrotator.domain.model.ToolType
-import com.ae.emailrotator.domain.usecase.*
+import com.ae.emailrotator.domain.model.Tool
+import com.ae.emailrotator.domain.usecase.email.LimitEmailUseCase
+import com.ae.emailrotator.domain.usecase.email.RefreshAvailabilityUseCase
+import com.ae.emailrotator.domain.usecase.email.GetEmailsUseCase
+import com.ae.emailrotator.domain.usecase.stats.GetDashboardStatsUseCase
+import com.ae.emailrotator.domain.usecase.tool.GetToolsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class ToolEmailState(
+    val tool: Tool,
+    val current: Email? = null,
+    val queue: List<Email> = emptyList()
+)
+
 data class DashboardState(
-    val claudeCurrent: Email? = null,
-    val claudeQueue: List<Email> = emptyList(),
-    val geminiCurrent: Email? = null,
-    val geminiQueue: List<Email> = emptyList(),
+    val toolStates: List<ToolEmailState> = emptyList(),
+    val stats: DashboardStats = DashboardStats(),
     val isLoading: Boolean = true,
     val limitEmail: Email? = null,
     val snackbar: String? = null
@@ -23,36 +32,48 @@ data class DashboardState(
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getEmails: GetEmailsUseCase,
+    private val getTools: GetToolsUseCase,
     private val limitEmailUseCase: LimitEmailUseCase,
-    private val refreshUseCase: RefreshAvailabilityUseCase
+    private val refreshUseCase: RefreshAvailabilityUseCase,
+    private val getDashboardStats: GetDashboardStatsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
-        // Refresh on start
         viewModelScope.launch { refreshUseCase() }
+        observeToolsAndEmails()
+        observeStats()
+    }
 
+    private fun observeToolsAndEmails() {
         viewModelScope.launch {
-            combine(
-                getEmails.available(ToolType.CLAUDE),
-                getEmails.available(ToolType.GEMINI)
-            ) { claude, gemini ->
-                DashboardState(
-                    claudeCurrent = claude.firstOrNull(),
-                    claudeQueue = claude,
-                    geminiCurrent = gemini.firstOrNull(),
-                    geminiQueue = gemini,
-                    isLoading = false
-                )
-            }.collect { newState ->
-                _state.update { old ->
-                    newState.copy(
-                        limitEmail = old.limitEmail,
-                        snackbar = old.snackbar
-                    )
+            getTools().flatMapLatest { tools ->
+                if (tools.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    val toolFlows = tools.map { tool ->
+                        getEmails.usable(tool.id).map { emails ->
+                            ToolEmailState(
+                                tool = tool,
+                                current = emails.firstOrNull(),
+                                queue = emails
+                            )
+                        }
+                    }
+                    combine(toolFlows) { it.toList() }
                 }
+            }.collect { toolStates ->
+                _state.update { it.copy(toolStates = toolStates, isLoading = false) }
+            }
+        }
+    }
+
+    private fun observeStats() {
+        viewModelScope.launch {
+            getDashboardStats().collect { stats ->
+                _state.update { it.copy(stats = stats) }
             }
         }
     }
@@ -68,7 +89,12 @@ class DashboardViewModel @Inject constructor(
     fun limitEmail(emailId: Long, availableAt: Long) {
         viewModelScope.launch {
             limitEmailUseCase(emailId, availableAt)
-            _state.update { it.copy(limitEmail = null, snackbar = "Email limited. Next in queue activated.") }
+            _state.update {
+                it.copy(
+                    limitEmail = null,
+                    snackbar = "Email limited. Next in queue activated."
+                )
+            }
         }
     }
 

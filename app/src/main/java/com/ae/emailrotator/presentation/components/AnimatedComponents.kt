@@ -18,9 +18,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.ae.emailrotator.R
 import com.ae.emailrotator.domain.model.EmailStatus
 import com.ae.emailrotator.presentation.theme.*
 
@@ -30,15 +32,19 @@ fun StatusDot(status: EmailStatus) {
         targetValue = when (status) {
             EmailStatus.AVAILABLE -> Green500
             EmailStatus.LIMITED -> Red500
-        }, label = "dotColor"
+            EmailStatus.NEEDS_VERIFICATION -> Amber500
+        },
+        label = "dotColor"
     )
     val pulse = rememberInfiniteTransition(label = "pulse")
     val scale by pulse.animateFloat(
         initialValue = 1f,
         targetValue = if (status == EmailStatus.AVAILABLE) 1.3f else 1f,
         animationSpec = infiniteRepeatable(
-            tween(1200, easing = EaseInOutCubic), RepeatMode.Reverse
-        ), label = "dotScale"
+            tween(1200, easing = EaseInOutCubic),
+            RepeatMode.Reverse
+        ),
+        label = "dotScale"
     )
     Box(
         Modifier
@@ -51,22 +57,38 @@ fun StatusDot(status: EmailStatus) {
 
 @Composable
 fun StatusChip(status: EmailStatus) {
-    val isDark = MaterialTheme.colorScheme.surface == Slate900
-    val (bg, fg) = when (status) {
-        EmailStatus.AVAILABLE -> if (isDark) Pair(Green900, Green500) else Pair(Green100, Green500)
-        EmailStatus.LIMITED -> if (isDark) Pair(Red900, Red500) else Pair(Red100, Red500)
+    val isDark = MaterialTheme.colorScheme.background == Slate900
+    val (bg, fg, labelRes) = when (status) {
+        EmailStatus.AVAILABLE -> Triple(
+            if (isDark) Green900 else Green100,
+            Green500,
+            R.string.status_available
+        )
+        EmailStatus.LIMITED -> Triple(
+            if (isDark) Red900 else Red100,
+            Red500,
+            R.string.status_limited
+        )
+        EmailStatus.NEEDS_VERIFICATION -> Triple(
+            if (isDark) Amber900 else Amber100,
+            Amber600,
+            R.string.status_needs_verification
+        )
     }
     Box(
         Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(bg)
+            .background(Color(bg.value))
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
             StatusDot(status)
             Text(
-                status.name,
-                color = fg,
+                text = stringResource(labelRes),
+                color = Color(fg.value),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -79,7 +101,7 @@ fun GlassCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val isDark = MaterialTheme.colorScheme.surface == Slate900
+    val isDark = MaterialTheme.colorScheme.background == Slate900
     val shape = RoundedCornerShape(20.dp)
     Column(
         modifier = modifier

@@ -1,4 +1,4 @@
-package com.ae.emailrotator.domain.usecase
+package com.ae.emailrotator.domain.usecase.email
 
 import com.ae.emailrotator.domain.repository.EmailRepository
 import javax.inject.Inject

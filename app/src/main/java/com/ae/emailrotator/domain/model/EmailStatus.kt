@@ -2,5 +2,6 @@ package com.ae.emailrotator.domain.model
 
 enum class EmailStatus {
     AVAILABLE,
-    LIMITED
+    LIMITED,
+    NEEDS_VERIFICATION
 }

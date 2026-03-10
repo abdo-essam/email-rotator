@@ -4,8 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,9 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ae.emailrotator.R
 import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.domain.model.EmailStatus
 import com.ae.emailrotator.presentation.theme.*
@@ -37,7 +39,8 @@ fun CurrentEmailCard(
                 size = 48.dp
             ) {
                 Icon(
-                    if (email != null) Icons.Filled.MarkEmailRead else Icons.Filled.MarkEmailUnread,
+                    imageVector = if (email != null) Icons.Filled.MarkEmailRead
+                    else Icons.Filled.MarkEmailUnread,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
@@ -46,13 +49,13 @@ fun CurrentEmailCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    toolName,
+                    text = toolName,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (email != null) {
                     Text(
-                        email.address,
+                        text = email.address,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -60,7 +63,7 @@ fun CurrentEmailCard(
                     )
                 } else {
                     Text(
-                        "No email available",
+                        text = stringResource(R.string.dashboard_no_email),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Red500
@@ -71,7 +74,7 @@ fun CurrentEmailCard(
                 StatusChip(email?.status ?: EmailStatus.LIMITED)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "$queueSize in queue",
+                    text = stringResource(R.string.dashboard_queue_count, queueSize),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -86,6 +89,7 @@ fun EmailListCard(
     onLimitClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onVerifyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     GlassCard(modifier = modifier.fillMaxWidth()) {
@@ -95,16 +99,20 @@ fun EmailListCard(
         ) {
             GradientBox(
                 gradient = Brush.linearGradient(
-                    if (email.status == EmailStatus.AVAILABLE)
-                        listOf(Green500, Teal500)
-                    else listOf(Red500, Amber500)
+                    when (email.status) {
+                        EmailStatus.AVAILABLE -> listOf(Green500, Teal500)
+                        EmailStatus.LIMITED -> listOf(Red500, Amber500)
+                        EmailStatus.NEEDS_VERIFICATION -> listOf(Amber500, Amber600)
+                    }
                 ),
                 size = 40.dp
             ) {
                 Icon(
-                    if (email.status == EmailStatus.AVAILABLE)
-                        Icons.Filled.MarkEmailRead
-                    else Icons.Filled.MarkEmailUnread,
+                    imageVector = when (email.status) {
+                        EmailStatus.AVAILABLE -> Icons.Filled.MarkEmailRead
+                        EmailStatus.LIMITED -> Icons.Filled.MarkEmailUnread
+                        EmailStatus.NEEDS_VERIFICATION -> Icons.Filled.HelpOutline
+                    },
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
@@ -113,7 +121,7 @@ fun EmailListCard(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    email.address,
+                    text = email.address,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -123,36 +131,9 @@ fun EmailListCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Tool badge
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            email.tool.displayName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    ToolBadge(toolName = email.toolName)
                     if (email.status == EmailStatus.LIMITED && email.availableAt != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Outlined.Timer,
-                                null,
-                                Modifier.size(12.dp),
-                                tint = Amber500
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text(
-                                DateTimeUtil.formatCountdown(email.availableAt),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Amber500,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        CountdownBadge(availableAt = email.availableAt)
                     }
                 }
             }
@@ -165,6 +146,17 @@ fun EmailListCard(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
+            if (email.status == EmailStatus.NEEDS_VERIFICATION) {
+                TextButton(
+                    onClick = onVerifyClick,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Green500),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Outlined.CheckCircle, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.action_verify))
+                }
+            }
             if (email.status == EmailStatus.AVAILABLE) {
                 TextButton(
                     onClick = onLimitClick,
@@ -173,7 +165,7 @@ fun EmailListCard(
                 ) {
                     Icon(Icons.Outlined.Block, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Limit")
+                    Text(stringResource(R.string.action_limit))
                 }
             }
             TextButton(
@@ -182,7 +174,7 @@ fun EmailListCard(
             ) {
                 Icon(Icons.Outlined.Edit, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Edit")
+                Text(stringResource(R.string.action_edit))
             }
             TextButton(
                 onClick = onDeleteClick,
@@ -191,8 +183,39 @@ fun EmailListCard(
             ) {
                 Icon(Icons.Outlined.Delete, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Delete")
+                Text(stringResource(R.string.action_delete))
             }
         }
+    }
+}
+
+@Composable
+private fun ToolBadge(toolName: String) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = toolName.ifBlank { "—" },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun CountdownBadge(availableAt: Long) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Outlined.Timer, null, Modifier.size(12.dp), tint = Amber500)
+        Spacer(Modifier.width(3.dp))
+        Text(
+            text = DateTimeUtil.formatCountdown(availableAt),
+            style = MaterialTheme.typography.labelSmall,
+            color = Amber500,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

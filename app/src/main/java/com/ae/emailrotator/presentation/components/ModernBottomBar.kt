@@ -46,14 +46,12 @@ fun ModernBottomBar(
         tonalElevation = 0.dp
     ) {
         Column {
-            // Top divider
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(0.5.dp)
                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             )
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -63,57 +61,68 @@ fun ModernBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEach { tab ->
-                    val selected = currentRoute == tab.route
-                    val scale by animateFloatAsState(
-                        targetValue = if (selected) 1f else 0.9f,
-                        animationSpec = spring(stiffness = Spring.StiffnessLow),
-                        label = "tabScale"
+                    BottomBarTabItem(
+                        tab = tab,
+                        isSelected = currentRoute == tab.route,
+                        onSelected = { onTabSelected(tab.route) }
                     )
-                    val iconColor by animateColorAsState(
-                        targetValue = if (selected)
-                            Blue500
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        label = "tabColor"
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .scale(scale)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { onTabSelected(tab.route) }
-                            .padding(vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            if (selected) {
-                                Box(
-                                    Modifier
-                                        .size(width = 48.dp, height = 28.dp)
-                                        .clip(CircleShape)
-                                        .background(Blue500.copy(alpha = 0.12f))
-                                )
-                            }
-                            Icon(
-                                imageVector = if (selected) tab.selectedIcon else tab.icon,
-                                contentDescription = tab.label,
-                                tint = iconColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = iconColor
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.BottomBarTabItem(
+    tab: BottomBarTab,
+    isSelected: Boolean,
+    onSelected: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.9f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "tabScale"
+    )
+    val iconColor by animateColorAsState(
+        targetValue = if (isSelected) Blue500
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "tabColor"
+    )
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .scale(scale)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onSelected
+            )
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (isSelected) {
+                Box(
+                    Modifier
+                        .size(width = 48.dp, height = 28.dp)
+                        .clip(CircleShape)
+                        .background(Blue500.copy(alpha = 0.12f))
+                )
+            }
+            Icon(
+                imageVector = if (isSelected) tab.selectedIcon else tab.icon,
+                contentDescription = tab.label,
+                tint = iconColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = tab.label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = iconColor
+        )
     }
 }
