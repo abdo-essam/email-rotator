@@ -51,7 +51,8 @@ class EmailRepositoryImpl @Inject constructor(
             ToolEmailStatusEntity(
                 emailId = emailId,
                 toolId = tool.id,
-                status = initialStatus.name
+                status = initialStatus.name,
+                lastUsedAt = System.currentTimeMillis() // Set initial lastUsedAt
             )
         }
         toolEmailStatusDao.insertAll(statuses)
@@ -65,11 +66,13 @@ class EmailRepositoryImpl @Inject constructor(
 
     override suspend fun deleteEmail(emailId: Long) {
         globalEmailDao.delete(emailId)
-        // Cascade deletes tool_email_status rows automatically via FK
     }
 
-    override suspend fun limitEmail(emailId: Long, toolId: Long, availableAt: Long) =
-        toolEmailStatusDao.limitEmail(emailId, toolId, availableAt)
+    override suspend fun limitEmail(statusId: Long, availableAt: Long) =
+        toolEmailStatusDao.limitEmail(statusId, availableAt, System.currentTimeMillis())
+
+    override suspend fun updateLimitTime(statusId: Long, availableAt: Long) =
+        toolEmailStatusDao.updateLimitTime(statusId, availableAt)
 
     override suspend fun verifyEmail(emailId: Long, toolId: Long) =
         toolEmailStatusDao.verifyEmail(emailId, toolId)
@@ -86,11 +89,13 @@ class EmailRepositoryImpl @Inject constructor(
 
     override suspend fun syncNewToolWithExistingEmails(toolId: Long) {
         val allEmails = globalEmailDao.getAllEmailsSnapshot()
+        val now = System.currentTimeMillis()
         val statuses = allEmails.map { email ->
             ToolEmailStatusEntity(
                 emailId = email.id,
                 toolId = toolId,
-                status = EmailStatus.AVAILABLE.name
+                status = EmailStatus.AVAILABLE.name,
+                lastUsedAt = now
             )
         }
         toolEmailStatusDao.insertAll(statuses)

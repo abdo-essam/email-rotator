@@ -11,7 +11,8 @@ import com.ae.emailrotator.domain.model.Tool
 import com.ae.emailrotator.domain.model.ToolEmailStatus
 
 fun EmailStatusWithDetails.toDomain(): Email = Email(
-    id = email_id, // Map email_id to domain Email id to represent the global identity
+    id = id, // Map primary key of tool_email_status to domain Email.id
+    globalEmailId = email_id, // Map global_emails primary key to domain globalEmailId
     address = address,
     toolId = tool_id,
     toolName = tool_name,
@@ -19,6 +20,7 @@ fun EmailStatusWithDetails.toDomain(): Email = Email(
     availableAt = available_at,
     createdAt = email_created_at
 )
+
 
 fun GlobalEmailEntity.toDomain(): GlobalEmail = GlobalEmail(
     id = id,

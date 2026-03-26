@@ -24,26 +24,18 @@ class GetDashboardStatsUseCase @Inject constructor(
                     toolId = tool.id,
                     toolName = tool.name,
                     totalEmails = toolEmails.size,
-                    activeEmails = toolEmails.count { it.status == EmailStatus.AVAILABLE }
+                    activeEmails = toolEmails.count { it.status == EmailStatus.AVAILABLE },
+                    limitedEmails = toolEmails.count { it.status == EmailStatus.LIMITED }
                 )
             }
+            // Unique emails by address for global stats
+            val uniqueEmails = emailStatuses.distinctBy { it.address }
+            
             DashboardStats(
-                totalEmails = emailStatuses.map { it.address }.distinct().size,
-                activeEmails = emailStatuses
-                    .filter { it.status == EmailStatus.AVAILABLE }
-                    .map { it.address }
-                    .distinct()
-                    .size,
-                limitedEmails = emailStatuses
-                    .filter { it.status == EmailStatus.LIMITED }
-                    .map { it.address }
-                    .distinct()
-                    .size,
-                needsVerificationEmails = emailStatuses
-                    .filter { it.status == EmailStatus.NEEDS_VERIFICATION }
-                    .map { it.address }
-                    .distinct()
-                    .size,
+                totalEmails = uniqueEmails.size,
+                activeEmails = uniqueEmails.count { it.status == EmailStatus.AVAILABLE },
+                limitedEmails = uniqueEmails.count { it.status == EmailStatus.LIMITED },
+                needsVerificationEmails = uniqueEmails.count { it.status == EmailStatus.NEEDS_VERIFICATION },
                 toolStats = toolStats
             )
         }

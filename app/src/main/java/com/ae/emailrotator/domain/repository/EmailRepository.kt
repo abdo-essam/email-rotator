@@ -13,8 +13,10 @@ interface EmailRepository {
     suspend fun addEmailToAllTools(address: String, initialStatus: EmailStatus): Long
     suspend fun updateEmailAddress(emailId: Long, newAddress: String)
     suspend fun deleteEmail(emailId: Long)
-    suspend fun limitEmail(emailId: Long, toolId: Long, availableAt: Long)
+    suspend fun limitEmail(statusId: Long, availableAt: Long)
+    suspend fun updateLimitTime(statusId: Long, availableAt: Long)
     suspend fun verifyEmail(emailId: Long, toolId: Long)
+
     suspend fun refreshAvailability(): List<Email>
     suspend fun getNextUsable(toolId: Long): Email?
     suspend fun syncNewToolWithExistingEmails(toolId: Long)

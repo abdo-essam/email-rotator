@@ -82,10 +82,12 @@ fun VerificationScreen(
                     EmailListCard(
                         email = email,
                         onLimitClick = { },
+                        onUpdateLimitClick = { },
                         onEditClick = { },
                         onDeleteClick = { },
                         onVerifyClick = { viewModel.verifyEmail(email.id, email.toolId) }
                     )
+
                 }
             }
         }

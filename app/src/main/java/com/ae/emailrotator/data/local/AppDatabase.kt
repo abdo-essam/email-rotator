@@ -15,7 +15,7 @@ import com.ae.emailrotator.data.local.entity.ToolEntity
         ToolEntity::class,
         ToolEmailStatusEntity::class
     ],
-    version = 6,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

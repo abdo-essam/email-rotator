@@ -32,5 +32,8 @@ data class ToolEmailStatusEntity(
     val toolId: Long,
     val status: String = "AVAILABLE",
     @ColumnInfo(name = "available_at")
-    val availableAt: Long? = null
+    val availableAt: Long? = null,
+    @ColumnInfo(name = "last_used_at")
+    val lastUsedAt: Long? = null
 )
+

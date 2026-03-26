@@ -1,6 +1,7 @@
 package com.ae.emailrotator.presentation.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -57,10 +58,13 @@ private val DarkColors = darkColorScheme(
 
 @Composable
 fun EmailRotatorTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean? = null, // null = loading/unknown state
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkColors else LightColors
+    // Use system default while loading, then switch to user preference
+    val useDarkTheme = darkTheme ?: isSystemInDarkTheme()
+    val colors = if (useDarkTheme) DarkColors else LightColors
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -68,11 +72,12 @@ fun EmailRotatorTheme(
             window.statusBarColor = colors.surface.toArgb()
             window.navigationBarColor = colors.surface.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
+                isAppearanceLightStatusBars = !useDarkTheme
+                isAppearanceLightNavigationBars = !useDarkTheme
             }
         }
     }
+
     MaterialTheme(
         colorScheme = colors,
         typography = AppTypography,

@@ -20,6 +20,7 @@ interface ToolEmailStatusDao {
                 ELSE 2 
             END,
             tes.available_at ASC,
+            tes.last_used_at ASC,
             ge.created_at ASC
     """)
     fun getEmailsForTool(toolId: Long): Flow<List<EmailStatusWithDetails>>
@@ -30,7 +31,7 @@ interface ToolEmailStatusDao {
         INNER JOIN global_emails ge ON tes.email_id = ge.id
         INNER JOIN tools t ON tes.tool_id = t.id
         WHERE tes.tool_id = :toolId AND tes.status = 'AVAILABLE'
-        ORDER BY ge.created_at ASC
+        ORDER BY tes.last_used_at ASC, ge.created_at ASC
     """)
     fun getUsableEmailsForTool(toolId: Long): Flow<List<EmailStatusWithDetails>>
 
@@ -40,7 +41,7 @@ interface ToolEmailStatusDao {
         INNER JOIN global_emails ge ON tes.email_id = ge.id
         INNER JOIN tools t ON tes.tool_id = t.id
         WHERE tes.status = :status
-        ORDER BY ge.created_at ASC
+        ORDER BY tes.last_used_at ASC, ge.created_at ASC
     """)
     fun getEmailsByStatus(status: String): Flow<List<EmailStatusWithDetails>>
 
@@ -71,6 +72,9 @@ interface ToolEmailStatusDao {
     @Query("SELECT * FROM tool_email_status WHERE email_id = :emailId AND tool_id = :toolId")
     suspend fun getStatus(emailId: Long, toolId: Long): ToolEmailStatusEntity?
 
+    @Query("SELECT * FROM tool_email_status WHERE id = :statusId")
+    suspend fun getStatusById(statusId: Long): ToolEmailStatusEntity?
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(status: ToolEmailStatusEntity): Long
 
@@ -82,10 +86,17 @@ interface ToolEmailStatusDao {
 
     @Query("""
         UPDATE tool_email_status 
-        SET status = 'LIMITED', available_at = :availableAt 
-        WHERE email_id = :emailId AND tool_id = :toolId
+        SET status = 'LIMITED', available_at = :availableAt, last_used_at = :now
+        WHERE id = :statusId
     """)
-    suspend fun limitEmail(emailId: Long, toolId: Long, availableAt: Long)
+    suspend fun limitEmail(statusId: Long, availableAt: Long, now: Long)
+
+    @Query("""
+        UPDATE tool_email_status 
+        SET available_at = :newAvailableAt
+        WHERE id = :statusId
+    """)
+    suspend fun updateLimitTime(statusId: Long, newAvailableAt: Long)
 
     @Query("""
         UPDATE tool_email_status 
@@ -120,7 +131,7 @@ interface ToolEmailStatusDao {
         INNER JOIN global_emails ge ON tes.email_id = ge.id
         INNER JOIN tools t ON tes.tool_id = t.id
         WHERE tes.tool_id = :toolId AND tes.status = 'AVAILABLE'
-        ORDER BY ge.created_at ASC
+        ORDER BY tes.last_used_at ASC, ge.created_at ASC
         LIMIT 1
     """)
     suspend fun getNextUsable(toolId: Long): EmailStatusWithDetails?
@@ -140,5 +151,6 @@ data class EmailStatusWithDetails(
     val address: String,
     val status: String,
     val available_at: Long?,
-    val email_created_at: Long
+    val email_created_at: Long,
+    val last_used_at: Long?
 )

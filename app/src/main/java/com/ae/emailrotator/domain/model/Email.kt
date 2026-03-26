@@ -1,7 +1,8 @@
 package com.ae.emailrotator.domain.model
 
 data class Email(
-    val id: Long = 0L,
+    val id: Long = 0L,         // statusId (primary key in tool_email_status)
+    val globalEmailId: Long = 0L, // email_id (reference to global_emails)
     val address: String,
     val toolId: Long,
     val toolName: String = "",

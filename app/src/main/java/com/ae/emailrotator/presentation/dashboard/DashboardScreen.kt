@@ -1,7 +1,9 @@
 package com.ae.emailrotator.presentation.dashboard
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,17 +19,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ae.emailrotator.R
 import com.ae.emailrotator.domain.model.DashboardStats
+import com.ae.emailrotator.domain.model.DayAvailability
 import com.ae.emailrotator.domain.model.Email
 import com.ae.emailrotator.presentation.components.*
 import com.ae.emailrotator.presentation.theme.*
+import com.ae.emailrotator.util.DateTimeUtil
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +42,7 @@ fun DashboardScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHost = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(state.snackbar) {
         state.snackbar?.let {
@@ -45,21 +51,53 @@ fun DashboardScreen(
         }
     }
 
+    // Limit bottom sheet
     state.limitEmail?.let { email ->
         LimitBottomSheet(
             emailAddress = email.address,
+            isUpdate = false,
             onConfirm = { availableAt ->
-                viewModel.limitEmail(email.id, email.toolId, availableAt)
+                viewModel.limitEmail(email.id, availableAt)
             },
             onDismiss = { viewModel.dismissLimit() }
         )
     }
 
+    // Update limit bottom sheet
+    state.updateLimitEmail?.let { email ->
+        LimitBottomSheet(
+            emailAddress = email.address,
+            currentAvailableAt = email.availableAt,
+            isUpdate = true,
+            onConfirm = { newAvailableAt ->
+                viewModel.updateLimitTime(email.id, newAvailableAt)
+            },
+            onDismiss = { viewModel.dismissUpdateLimit() }
+        )
+    }
+
+    // Date picker dialog
+    if (state.showDatePicker) {
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val selectedCal = Calendar.getInstance().apply {
+                    set(year, month, day, 0, 0, 0)
+                }
+                viewModel.selectDate(selectedCal.timeInMillis)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnDismissListener { viewModel.dismissDatePicker() }
+        }.show()
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHost) },
-        topBar = {
-            DashboardTopBar()
-        }
+        topBar = { DashboardTopBar() }
     ) { padding ->
         if (state.isLoading) {
             Box(
@@ -83,7 +121,7 @@ fun DashboardScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // ── Stats Overview ──────────────────────────────────────
+                // Stats Overview
                 item(key = "stats_section") {
                     StatsSection(
                         stats = state.stats,
@@ -91,14 +129,24 @@ fun DashboardScreen(
                     )
                 }
 
-                // ── Per-tool sections ───────────────────────────────────
+                // Date availability selector
+                item(key = "date_selector") {
+                    DateAvailabilitySection(
+                        selectedAvailability = state.selectedDateAvailability,
+                        onSelectDate = { viewModel.showDatePicker() },
+                        onClearDate = { viewModel.clearDateSelection() }
+                    )
+                }
+
+                // Per-tool sections
                 items(
                     items = state.toolStates,
                     key = { "tool_section_${it.tool.id}" }
                 ) { toolState ->
                     ToolSection(
                         toolState = toolState,
-                        onLimitClick = { viewModel.showLimit(toolState.current!!) }
+                        onLimitEmail = { viewModel.showLimit(it) },
+                        onUpdateLimit = { viewModel.showUpdateLimit(it) }
                     )
                 }
             }
@@ -146,7 +194,6 @@ private fun StatsSection(
             fontWeight = FontWeight.Bold
         )
 
-        // Row 1 – Total / Active
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -167,7 +214,6 @@ private fun StatsSection(
             )
         }
 
-        // Row 2 – Limited / Needs Verification
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -189,7 +235,7 @@ private fun StatsSection(
             )
         }
 
-        // Tool Usage
+        // Tool usage
         if (stats.toolStats.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
             Text(
@@ -201,8 +247,135 @@ private fun StatsSection(
                 ToolUsageCard(
                     toolName = toolStat.toolName,
                     totalEmails = toolStat.totalEmails,
-                    activeEmails = toolStat.activeEmails
+                    activeEmails = toolStat.activeEmails,
+                    limitedEmails = toolStat.limitedEmails
                 )
+            }
+        }
+    }
+}
+
+// ─── Date Availability Section ─────────────────────────────────────────────
+
+@Composable
+private fun DateAvailabilitySection(
+    selectedAvailability: DayAvailability?,
+    onSelectDate: () -> Unit,
+    onClearDate: () -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                Icons.Outlined.CalendarMonth,
+                null,
+                tint = Purple500,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.dashboard_availability_calendar),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedButton(
+                onClick = onSelectDate,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    Icons.Default.DateRange,
+                    null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.dashboard_select_date),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+
+        if (selectedAvailability != null) {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Purple500.copy(alpha = 0.15f)
+                    else Color(0xFFF3E8FF)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = selectedAvailability.dateFormatted,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Purple400 else Purple500
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.dashboard_emails_on_day,
+                                selectedAvailability.count
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = onClearDate) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (selectedAvailability.emails.isNotEmpty()) {
+                    HorizontalDivider(
+                        color = if (isDark) Purple500.copy(alpha = 0.2f)
+                        else Purple500.copy(alpha = 0.1f)
+                    )
+                    Column(Modifier.padding(14.dp)) {
+                        selectedAvailability.emails.forEach { email ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Email,
+                                    null,
+                                    tint = if (isDark) Purple400 else Purple500,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = email.address,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (email.availableAt != null) {
+                                    Text(
+                                        text = DateTimeUtil.formatTime(email.availableAt),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -213,34 +386,93 @@ private fun StatsSection(
 @Composable
 private fun ToolSection(
     toolState: ToolEmailState,
-    onLimitClick: () -> Unit
+    onLimitEmail: (Email) -> Unit,
+    onUpdateLimit: (Email) -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background == Slate950
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ToolSectionHeader(toolName = toolState.tool.name)
 
+        // Current email card
         CurrentEmailCard(
-            email = toolState.current,
+            email = toolState.availableEmails.firstOrNull(),
             toolName = stringResource(
                 R.string.dashboard_current_email_label,
                 toolState.tool.name
             ),
-            queueSize = toolState.queue.size
+            queueSize = toolState.availableEmails.size,
+            nextComingEmail = toolState.nextComingEmail
         )
 
-        if (toolState.current != null) {
-            LimitCurrentButton(onLimitClick = onLimitClick)
-        }
-
-        if (toolState.queue.size > 1) {
+        // Available Emails Section
+        if (toolState.availableEmails.isNotEmpty()) {
+            SectionLabel(
+                title = stringResource(R.string.dashboard_available_emails),
+                count = toolState.availableEmails.size,
+                color = if (isDark) Green400 else Green600
+            )
             Text(
-                text = stringResource(R.string.dashboard_queue_label),
-                style = MaterialTheme.typography.labelMedium,
+                text = stringResource(R.string.dashboard_tap_to_limit),
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 2.dp)
             )
-            toolState.queue.drop(1).forEach { email ->
-                QueueEmailItem(email = email)
+            toolState.availableEmails.forEach { email ->
+                AvailableEmailItem(
+                    email = email,
+                    onClick = { onLimitEmail(email) }
+                )
             }
+        }
+
+        // Limited Emails Section
+        if (toolState.limitedEmails.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            SectionLabel(
+                title = stringResource(R.string.dashboard_limited_emails),
+                count = toolState.limitedEmails.size,
+                color = if (isDark) Red400 else Red500
+            )
+            toolState.limitedEmails.forEach { email ->
+                LimitedEmailItem(
+                    email = email,
+                    onClick = { onUpdateLimit(email) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(
+    title: String,
+    count: Int,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.width(6.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(color.copy(alpha = 0.15f))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -270,73 +502,6 @@ private fun ToolSectionHeader(toolName: String) {
             text = toolName,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-// ─── Limit Current Button ──────────────────────────────────────────────────
-
-@Composable
-private fun LimitCurrentButton(onLimitClick: () -> Unit) {
-    val isDark = MaterialTheme.colorScheme.background == Slate950
-    OutlinedButton(
-        onClick = onLimitClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = if (isDark) Amber400 else Amber600
-        ),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
-            brush = Brush.linearGradient(
-                listOf(
-                    if (isDark) Amber400 else Amber500,
-                    if (isDark) Amber400 else Amber500
-                )
-            )
-        )
-    ) {
-        Icon(Icons.Outlined.Block, null, Modifier.size(16.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = stringResource(R.string.dashboard_limit_current),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
-}
-
-// ─── Queue Email Item ──────────────────────────────────────────────────────
-
-@Composable
-private fun QueueEmailItem(email: Email) {
-    val isDark = MaterialTheme.colorScheme.background == Slate950
-    val shape = RoundedCornerShape(12.dp)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(if (isDark) Slate800 else Slate50)
-            .border(1.dp, if (isDark) Slate700 else Slate200, shape)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        StatusDot(email.status)
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = email.address,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = stringResource(R.string.dashboard_ready),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isDark) Green400 else Green600,
-            fontWeight = FontWeight.SemiBold
         )
     }
 }

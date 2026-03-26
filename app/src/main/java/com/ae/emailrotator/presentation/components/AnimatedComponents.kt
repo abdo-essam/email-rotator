@@ -10,7 +10,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -225,6 +228,7 @@ fun ToolUsageCard(
     toolName: String,
     totalEmails: Int,
     activeEmails: Int,
+    limitedEmails: Int,
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background == Slate950
@@ -267,18 +271,20 @@ fun ToolUsageCard(
             modifier = Modifier.weight(1f)
         )
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PillBadge(
-                text = "$totalEmails total",
-                bgColor = if (isDark) Slate700 else Slate100,
-                textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "$activeEmails",
+                bgColor = if (isDark) Green500.copy(alpha = 0.18f) else Green50,
+                textColor = if (isDark) Green400 else Green600,
+                icon = Icons.Outlined.CheckCircle
             )
             PillBadge(
-                text = "$activeEmails active",
-                bgColor = if (isDark) Green500.copy(alpha = 0.18f) else Green50,
-                textColor = if (isDark) Green400 else Green600
+                text = "$limitedEmails",
+                bgColor = if (isDark) Red500.copy(alpha = 0.18f) else Red50,
+                textColor = if (isDark) Red400 else Red500,
+                icon = Icons.Outlined.Block
             )
         }
     }
@@ -290,14 +296,25 @@ fun ToolUsageCard(
 fun PillBadge(
     text: String,
     bgColor: Color,
-    textColor: Color
+    textColor: Color,
+    icon: ImageVector? = null
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = textColor,
+                modifier = Modifier.size(12.dp)
+            )
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,

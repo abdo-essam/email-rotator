@@ -12,5 +12,6 @@ data class ToolStat(
     val toolId: Long,
     val toolName: String,
     val totalEmails: Int,
-    val activeEmails: Int
+    val activeEmails: Int,
+    val limitedEmails: Int
 )

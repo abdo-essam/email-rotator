@@ -13,10 +13,19 @@
     <string name="dashboard_queue_label">Queue</string>
     <string name="dashboard_queue_count">%1$d in queue</string>
     <string name="dashboard_no_email">No email available</string>
-    <string name="dashboard_current_email_label">%1$s — Current Email</string>
+    <string name="dashboard_current_email_label">%1$s — Current</string>
     <string name="dashboard_ready">Ready</string>
     <string name="dashboard_limit_current">Limit Current Email</string>
     <string name="dashboard_email_limited_next">Email limited. Next in queue activated.</string>
+    <string name="dashboard_available_emails">Available</string>
+    <string name="dashboard_limited_emails">Limited</string>
+    <string name="dashboard_no_available_emails">No available emails</string>
+    <string name="dashboard_next_available">Next available</string>
+    <string name="dashboard_coming_soon">Coming Soon</string>
+    <string name="dashboard_tap_to_limit">Tap email to limit</string>
+    <string name="dashboard_availability_calendar">Availability Calendar</string>
+    <string name="dashboard_emails_on_day">%1$d email(s) will be available</string>
+    <string name="dashboard_select_date">Select Date</string>
 
     <!-- Stats -->
     <string name="stat_total_emails">Total Emails</string>
@@ -36,7 +45,7 @@
     <string name="emails_empty_add_hint">Tap + to add your first email</string>
     <string name="emails_add">Add Email</string>
     <string name="emails_edit">Edit Email</string>
-    <string name="emails_add_subtitle">Add an email and assign it to a tool</string>
+    <string name="emails_add_subtitle">Email will be added to all tools automatically</string>
     <string name="emails_update_success">Email updated.</string>
     <string name="emails_add_success">Email added.</string>
     <string name="emails_delete_success">Email deleted.</string>
@@ -50,10 +59,11 @@
     <string name="action_verify">Verify</string>
     <string name="action_update_email">Update Email</string>
     <string name="action_add_email">Add Email</string>
+    <string name="action_update">Update</string>
 
     <!-- Email Status -->
-    <string name="status_available">AVAILABLE</string>
-    <string name="status_limited">LIMITED</string>
+    <string name="status_available">Available</string>
+    <string name="status_limited">Limited</string>
     <string name="status_needs_verification">Needs Verification</string>
 
     <!-- Add/Edit Sheet -->
@@ -72,6 +82,14 @@
     <string name="limit_select_date">Select a date</string>
     <string name="limit_select_time">Select a time</string>
     <string name="limit_confirm">Limit Email</string>
+    <string name="limit_duration_title">Select Duration</string>
+    <string name="limit_duration_or_custom">Or set custom date/time</string>
+    <string name="limit_quick_durations">Quick Options</string>
+    <string name="limit_custom_datetime">Custom Date &amp; Time</string>
+    <string name="limit_update_title">Update Limit</string>
+    <string name="limit_update_description">Adjust when this email becomes available again.</string>
+    <string name="limit_update_confirm">Update Limit</string>
+
 
     <!-- Verification Screen -->
     <string name="verification_title">Needs Verification</string>
@@ -81,11 +99,11 @@
     <string name="verification_mark_verified">Mark as Verified</string>
     <string name="verification_pending_badge">Pending</string>
     <string name="verification_success">Email verified successfully.</string>
-    <string name="verification_info">Emails marked as "Needs Verification" will not be used by the system until verified.</string>
+    <string name="verification_info">Emails marked as \"Needs Verification\" will not be used by the system until verified.</string>
 
     <!-- Delete Dialog -->
     <string name="delete_title">Delete Email</string>
-    <string name="delete_message">Delete \"%1$s\"?</string>
+    <string name="delete_message">Delete \"%1$s\"? This will remove it from all tools.</string>
     <string name="delete_confirm">Delete</string>
     <string name="delete_cancel">Cancel</string>
 
@@ -97,13 +115,13 @@
     <string name="tools_empty_title">No tools configured</string>
     <string name="tools_empty_hint">Tap + to add your first tool</string>
     <string name="tools_name_label">Tool Name</string>
-    <string name="tools_name_placeholder">e.g. Claude</string>
+    <string name="tools_name_placeholder">e.g. Cursor</string>
     <string name="tools_name_required">Tool name is required</string>
     <string name="tools_name_exists">Tool name already exists</string>
     <string name="tools_add_success">Tool added.</string>
     <string name="tools_update_success">Tool updated.</string>
     <string name="tools_delete_success">Tool deleted.</string>
-    <string name="tools_delete_message">Delete tool \"%1$s\"? All associated emails will lose this tool assignment.</string>
+    <string name="tools_delete_message">Delete tool \"%1$s\"? All email statuses for this tool will be removed.</string>
     <string name="tools_emails_count">%1$d email(s)</string>
 
     <!-- Settings Screen -->
@@ -116,7 +134,7 @@
     <string name="settings_notifications_desc">Get notified when a limited email becomes available</string>
     <string name="settings_defaults">Defaults</string>
     <string name="settings_default_limit_days">Default Limit Duration</string>
-    <string name="settings_default_limit_days_desc">Days before a limited email becomes available again</string>
+    <string name="settings_default_limit_days_desc">Default days for new email limits</string>
     <string name="settings_days_format">%1$d days</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
@@ -130,4 +148,9 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_confirm">Confirm</string>
     <string name="common_search">Search</string>
+
+    <!-- Time Related -->
+    <string name="time_in">in %1$s</string>
+    <string name="time_ago">%1$s ago</string>
+    <string name="time_at">at %1$s</string>
 </resources>
